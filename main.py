@@ -56,13 +56,13 @@ files = {files_names[i]:files_list[i] for i in range(len(files_names))}
 vocab_size, str2idx, idx2str = create_vocab(files, myorder)
 
 # Print files' names and texts
-print("\n{}\n".format('='*100))
+print("\n{}\n".format('='*45))
 print("myorder: ", myorder)
 print("Files: ", len(files))
 print("Files names:")
 for i, file_name in enumerate(files):
   print("\t{}- {}".format(i+1, file_name))
-print("\n{}\n".format('='*100))
+print("\n{}\n".format('='*45))
 
 #####################
 # DATASETS CREATION #
@@ -91,8 +91,9 @@ if epochs_comedy > 0:
 # Print samples of the generated Comedy dataset
 print("Comedy datasets Samples:\n")
 for (batch, (inputs, targets)) in enumerate(dataset_comedy.take(1)):
-  print("{} [batch: {}] {}".format("="*15, batch, "="*15))
+  print("{} [batch: {}] {}".format("="*16, batch, "="*16))
   print("-- input:\n\n{}\n\n-- target:\n\n{}\n".format(clear_text(ints_to_text(inputs[0], idx2str)),clear_text(ints_to_text(targets[0], idx2str))))
+  print("{}".format("="*45)
 
 #############
 # TOKENIZER #
