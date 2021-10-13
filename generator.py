@@ -1,21 +1,27 @@
+import time
 import tensorflow as tf
-from transformer import Transformer
+from transformer import Transformer, create_masks
+from utils.training import print_progress, CustomSchedule
+
+_train_step_signature = [
+    tf.TensorSpec(shape=(None, None), dtype=tf.int32),
+    tf.TensorSpec(shape=(None, None), dtype=tf.int32),
+]
 
 class Generator():
 
-    # __slots__ = [vocab_size, encoders, decoders, d_model, dff, heads, dropout, transformer]
-
-    def __init__(self, vocab_size:int , encoders:int = 5, decoders:int = 5, d_model:int = 256, dff:int = 512, heads:int = 4, dropout:float = 0.2):
+    def __init__(self, vocab_size:int, encoders:int = 5, decoders:int = 5, heads:int = 4, d_model:int = 256, dff:int = 512, dropout:float = 0.2):
     
+        # initialize transformer model parameters
         self.vocab_size = vocab_size
         self.encoders = encoders
         self.decoders = decoders
+        self.heads = heads
         self.d_model = d_model
         self.dff = dff
-        self.heads = heads
         self.dropout = dropout
 
-        # trainsformer model instantiation
+        # transformer model instantiation
         self.transformer = Transformer(encoders,
                                 decoders,
                                 d_model,
@@ -27,16 +33,32 @@ class Generator():
                                 pe_target= vocab_size,
                                 rate= dropout)
 
+        # optimizer
+        self.lr = CustomSchedule(self.d_model)
+        self.optimizer = tf.keras.optimizers.Adam(self.lr, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
+        # training metrics definition
+        self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+        self.train_loss = tf.keras.metrics.Mean(name='train_loss')
+        self.train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
+
+
     def __str__(self):
         return f"""
 Generator parameters:
 - encoders: {self.encoders}
 - decoders: {self.decoders}
+- num_heads: {self.heads}
 - d_model: {self.d_model}
 - dff: {self.dff}
-- num_heads: {self.heads}
 - dropout: {self.dropout}
+- optimizer: {str(type(self.optimizer))[:-2].split('.')[-1]}
+- loss: {str(type(self.loss_object))[:-2].split('.')[-1]}
+- metric: {str(type(self.train_accuracy))[:-2].split('.')[-1]}
 """
+
+    ##############
+    # GENERATION #
+    ##############
 
     def evaluate(self, input, eov, max_length=100, temperature=1.0):
     
@@ -64,8 +86,7 @@ Generator parameters:
             output.append(predicted_id)
         
             # if the token coincides with the end-of-verse token
-            if predicted_id == eov:
-                break
+            if predicted_id == eov: break
         
             # otherwise the token is appended both to the new decoder input
             decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)
@@ -90,7 +111,7 @@ Generator parameters:
             input_list = list(tf.keras.preprocessing.sequence.pad_sequences([input_sequence], maxlen=max_len)[0])
 
             # generate one verse
-            generated_verse, _ = evaluate(input_list, eov, temperature=temperature)
+            generated_verse, _ = self.evaluate(input_list, eov, temperature=temperature)
 
             # append the generated verse to the input sequence
             input_sequence += generated_verse
@@ -101,3 +122,102 @@ Generator parameters:
             generated += generated_verse
         
         return generated
+
+    ############
+    # TRAINING #
+    ############
+
+    def _loss_function(self, real, pred):
+        # "mask" is a boolean tensor with False values on padding values (0 values) 
+        mask = tf.math.logical_not(tf.math.equal(real, 0))
+        # "loss_" is a tensor of float values
+        loss_ = self.loss_object(real, pred)
+        # convert mask boolean values to float (False=0. and True=1.)
+        mask = tf.cast(mask, dtype=loss_.dtype)
+        # apply mask to loss tensor
+        loss_ *= mask
+        
+        # returns a single float value representing the loss value
+        return tf.reduce_sum(loss_)/tf.reduce_sum(mask)
+
+    @tf.function(input_signature=_train_step_signature)
+    def _train_step(self, inp, tar):
+            
+        # split input and target
+        pred_size = 1
+        tar_inp = tar[:, :-pred_size]
+        tar_real = tar[:, pred_size:]
+        
+        # create masks
+        enc_padding_mask, combined_mask, dec_padding_mask = create_masks(inp, tar_inp)
+        
+        # compute predictions
+        with tf.GradientTape() as tape:
+            predictions, _ = self.transformer(inp,
+                                        tar_inp, 
+                                        True, 
+                                        enc_padding_mask,
+                                        combined_mask,
+                                        dec_padding_mask
+                                        )
+        
+            # compute loss function
+            loss = self._loss_function(tar_real, predictions)
+        
+        # compute gradients
+        gradients = tape.gradient(loss, self.transformer.trainable_variables)    
+        
+        # apply gradients
+        self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
+        
+        # update training metrics
+        self.train_loss(loss)
+        self.train_accuracy(tar_real, predictions)
+
+    
+    def train_model(self, dataset, epochs, real_size):
+
+        # start timer
+        start = time.time()
+        
+        # initialize training variables
+        repetition = 1
+        loss_history = []
+        accuracy_history = []
+
+        for epoch in range(epochs):
+            
+            # compute total repetitions needed
+            repetitions = int(len(dataset)/real_size)
+
+            for (batch, (inp, tar)) in enumerate(dataset):
+                    
+                # update gradients
+                self._train_step(inp, tar)
+            
+                # show/update output progress bar
+                print_progress(batch, len(dataset), 
+                                "epoch {}/{}   repetition {}/{}  loss: {:.4f}  accuracy: {:.4f}".format(
+                                    epoch+1, epochs, repetition, repetitions, self.train_loss.result(), self.train_accuracy.result()))
+
+                # update metrics and training history at each repetition ("epoch")
+                if batch != 0 and (batch) % real_size == 0:
+
+                    # Append values to histories
+                    loss_history.append('{:.4f}'.format(self.train_loss.result()))
+                    accuracy_history.append('{:.4f}'.format(self.train_accuracy.result()))
+
+                    # Reset loss and accuracy states
+                    self.train_loss.reset_states()
+                    self.train_accuracy.reset_states()
+                    repetition +=1
+        
+        # append last values to histories
+        loss_history.append('{:.4f}'.format(train_loss.result()))
+        accuracy_history.append('{:.4f}'.format(train_accuracy.result()))
+
+        # stop timer
+        t = round(time.time() - start)
+        print(f'\n\tTraining completed in {int(t/3600)}h {int(t/60%60)}m {int(t%60)}s.\n')
+        
+        return t, loss_history, accuracy_history
