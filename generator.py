@@ -213,8 +213,8 @@ Generator parameters:
                     repetition +=1
         
         # append last values to histories
-        loss_history.append('{:.4f}'.format(train_loss.result()))
-        accuracy_history.append('{:.4f}'.format(train_accuracy.result()))
+        loss_history.append('{:.4f}'.format(self.train_loss.result()))
+        accuracy_history.append('{:.4f}'.format(self.train_accuracy.result()))
 
         # stop timer
         t = round(time.time() - start)
