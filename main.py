@@ -1,4 +1,8 @@
 import json
+import time
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import figure
+
 from utils.preprocessing import *
 from generator import Generator
 # from tokenizer import Tokenizer
@@ -23,7 +27,7 @@ epochs_comedy = 1
 
 # number of repetitions per dataset, instead of epochs
 repetitions_production = 0
-repetitions_comedy = 70
+repetitions_comedy = 1 #70 default
 
 # append files' names in the desired order
 myorder = []
@@ -89,11 +93,10 @@ if epochs_comedy > 0:
   print("Real size comedy: ", real_size_comedy)
 
 # Print samples of the generated Comedy dataset
-print("Comedy datasets Samples:\n")
 for (batch, (inputs, targets)) in enumerate(dataset_comedy.take(1)):
-  print("{} [batch: {}] {}".format("="*16, batch, "="*16))
+  print("{} [ Dataset Sample ] {}\n".format("="*16, "="*16))
   print("-- input:\n\n{}\n\n-- target:\n\n{}\n".format(clear_text(ints_to_text(inputs[0], idx2str)),clear_text(ints_to_text(targets[0], idx2str))))
-  print("{}".format("="*45)
+  print("{}".format("="*45))
 
 #############
 # TOKENIZER #
@@ -107,7 +110,6 @@ for (batch, (inputs, targets)) in enumerate(dataset_comedy.take(1)):
 # GENERATOR #
 #############
 
-from generator import Generator
 generator = Generator(vocab_size = vocab_size,
                       encoders = 5, 
                       decoders = 5, 
@@ -144,7 +146,7 @@ else:
 
 # initialize start string
 divine_comedy = files_list[files_names.index("tokenized_commedia.txt")]
-start = list(tf.keras.preprocessing.sequence.pad_sequences([flatten(encode_tokens(split_tokens(divine_comedy[:3])))], maxlen=max_len)[0])
+start = list(tf.keras.preprocessing.sequence.pad_sequences([flatten(encode_tokens(split_tokens(divine_comedy[:3]), str2idx))], maxlen=max_len)[0])
 print("Start:\n", np.array(divine_comedy)[:3])
 
 # initialize list of generations
@@ -162,11 +164,12 @@ for temp in temperatures:
   print(f"- temperature {temp}... ", end="")
 
   # generate cantica
-  generated_string = generator.generate(start,
+  generated_string = generator.generate(str2idx = str2idx,
+                                        start = start,
                                         eov = str2idx['</v>'],
                                         max_len = max_len,
-                                        temperature=temp,
-                                        max_iterations=100)
+                                        max_iterations=100,
+                                        temperature=temp)
                                         
   # decode the generated cantica and remove special tokens
   generated_string = clear_text(ints_to_text(generated_string))
@@ -178,17 +181,18 @@ for temp in temperatures:
   # append generated cantica to results
   generations.append(generated_string)
 
-# stringify the model description for the file name
-model_description = f"{generator.encoders}_{generator.decoders}_{generator.d_model}_{generator.dff}_{generator.heads}_{repetitions_production}_{repetitions_comedy}"
+###########
+# RESULTS #
+###########
 
 # create the log dictionary
 log = {
     "model": { 
-        "num_layers_encoder": generator.encoder,
-        "num_layers_decoder": generator.decoder,
+        "encoders": generator.encoders,
+        "decoders": generator.decoders,
         "d_model": generator.d_model,
         "dff": generator.dff,
-        "num_heads": generator.heads
+        "heads": generator.heads
         },
     "trainings": {
         "production": {
@@ -209,102 +213,17 @@ log = {
 for i, temp in enumerate(temperatures):
   log["generations"]["temp_"+str(temp)] = generations[i]
 
-# create destination folder if it doesn't exist
-if not os.path.exists(out_path):
-  os.mkdir(out_path)
-  print("CREATED: ", out_path)
-
-# Save the log file 
-log_file = f"{out_path}/LOG_{model_description}.json"
-with open(log_file, 'w+') as fp:
-  json.dump(log, fp, indent=4)
-  print(f"log saved as {log_file}")
-
-# Save the generations as text files
-generations_files = []
-for temperature, generated_text in zip(log["generations"], generations):
-  out_file_name = f"GEN-{temperature}_[{model_description}].txt"
-  file_path = f"{out_path}/{out_file_name}"
-  with open(file_path, "w+") as out_file:
-    out_file.write("\n".join(generated_text[1:]))
-    generations_files.append(file_path)
-    print(f"generated text at temperature {temperature} saved as {out_file_name}")
-print(f"\tin folder {out_path}")
-
-###########
-# RESULTS #
-###########
+# save results to out_path
+save_results(log, out_path)
 
 # print model summary
 transformer.summary()
 
-# print model and training information
-print('MODEL:')
-for param in log['model']:
-  print(f" -- {param}: {log['model'][param]}")
-print('\nTRAINING:')
-for training in log['trainings']:
-  print(f" -- {training}")
-  for info in log['trainings'][training]:
-    if 'history' in info:
-      print(f"   -- {info}: {log['trainings'][training][info][:3]} ... {log['trainings'][training][info][-3:]}")
-    elif info == 'time':
-      print(f"   -- {info}: {int(log['trainings'][training][info]/3600)}h {int(log['trainings'][training][info]/60%60)}m {int(log['trainings'][training][info]%60)}s")
-    else:
-      print(f"   -- {info}: {log['trainings'][training][info]}")
+# print training information
+show_train_info(log)
 
-#####################
-# PRINT GENERATIONS #
-#####################
-
-# extract the texts from the log
-generations = []
-for temp in log['generations']:
-  canto = log['generations'][temp] 
-  generations.append(canto.replace(' ,',',').replace(' .','.').replace(' !','!').replace(' ?','?').replace(' :',':').replace(' ;',';').split('\n'))
-
-# header of the table
-head_line = "\t    "
-for temp in temperatures:
-  head_line += "{:<45}".format(temp)
-print(head_line+"\n\n")
-
-# organize by columns
-for row_idx in range(len(generations[0])):
-  row = ""
-  for temp_idx in range(len(temperatures)):
-    row += "{:<45}".format(generations[temp_idx][row_idx])
-  print(row)
-
-####################################
-# PLOT LOSS AND ACCURACY HISTORIES #
-####################################
-
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import figure
+# print generations in tabular form
+show_generations(log, temperatures)
 
 # plot loss and accuracy histories
-fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2, figsize=(30, 10))
-
-# loss history
-loss_history = log['trainings']['comedy']['loss_history']
-for i, loss in enumerate(loss_history):
-  loss_history[i] = float(loss_history[i])
-
-# accuracy history
-acc_history = log['trainings']['comedy']['acc_history']
-for i, loss in enumerate(acc_history):
-  acc_history[i] = float(acc_history[i]) 
-
-# plot loss history
-ax0.set_title('Loss History', color='lightblue', fontsize=15, fontweight= 'bold')
-ax0.set_xticks(range(0,len(loss_history),5))
-ax0.grid()
-ax0.plot(loss_history, color='blue')
-
-# plot accuracy history
-ax1.set_title('Accuracy History', color='orange', fontsize=15, fontweight= 'bold')
-ax1.set_xticks(range(0,len(acc_history),5))
-ax1.set_ylim(top=1)
-ax1.grid()
-ax1.plot(acc_history, color='red')
+plot_hist(loss_history, acc_history)

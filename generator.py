@@ -93,7 +93,7 @@ Generator parameters:
         
         return output, attention_weights
 
-    def generate(self, start, eov, max_len, max_iterations=5, temperature=1.0):
+    def generate(self, str2idx, start, eov, max_len, max_iterations=5, temperature=1.0):
 
         # drop the first verse to keep a window of 3 verses
         def drop_first_verse(sequence):
