@@ -7,9 +7,9 @@ from utils.preprocessing import *
 from generator import Generator
 # from tokenizer import Tokenizer
 
-##################
-# TRAINING SETUP #
-##################
+#########
+# SETUP #
+#########
 
 # ATTENTION: assert d_model % self.num_heads == 0
 
@@ -27,7 +27,7 @@ epochs_comedy = 1
 
 # number of repetitions per dataset, instead of epochs
 repetitions_production = 0
-repetitions_comedy = 1 #70 default
+repetitions_comedy = 70
 
 # append files' names in the desired order
 myorder = []
@@ -94,7 +94,7 @@ if epochs_comedy > 0:
 
 # Print samples of the generated Comedy dataset
 for (batch, (inputs, targets)) in enumerate(dataset_comedy.take(1)):
-  print("{} [ Dataset Sample ] {}\n".format("="*16, "="*16))
+  print("\n{} [ Dataset Sample ] {}\n".format("="*13, "="*13))
   print("-- input:\n\n{}\n\n-- target:\n\n{}\n".format(clear_text(ints_to_text(inputs[0], idx2str)),clear_text(ints_to_text(targets[0], idx2str))))
   print("{}".format("="*45))
 
@@ -181,35 +181,40 @@ for temp in temperatures:
   # append generated cantica to results
   generations.append(generated_string)
 
-###########
-# RESULTS #
-###########
+#######
+# LOG #
+#######
+
+# stringify the model description for the file name
+model_description = f"{generator.encoders}_{generator.decoders}_{generator.d_model}_{generator.dff}_{generator.heads}_{repetitions_production}_{repetitions_comedy}"
 
 # create the log dictionary
 log = {
-    "model": { 
-        "encoders": generator.encoders,
-        "decoders": generator.decoders,
-        "d_model": generator.d_model,
-        "dff": generator.dff,
-        "heads": generator.heads
-        },
-    "trainings": {
-        "production": {
-            "repetitions": repetitions_production,
-            "time": t_production,
-            "loss_history": loss_hist_production,
-            "acc_history": acc_hist_production
-        },
-        "comedy": {
-            "repetitions": repetitions_comedy,
-            "time": t_comedy,
-            "loss_history": loss_hist_comedy,
-            "acc_history": acc_hist_comedy
-        }
+  "model": { 
+    "num_layers_encoder": generator.encoder,
+    "num_layers_decoder": generator.decoder,
+    "d_model": generator.d_model,
+    "dff": generator.dff,
+    "num_heads": generator.heads
     },
-    "generations": {}
+  "trainings": {
+    "production": {
+        "repetitions": repetitions_production,
+        "time": t_production,
+        "loss_history": loss_hist_production,
+        "acc_history": acc_hist_production
+    },
+    "comedy": {
+        "repetitions": repetitions_comedy,
+        "time": t_comedy,
+        "loss_history": loss_hist_comedy,
+        "acc_history": acc_hist_comedy
+    }
+  },
+  "generations": {}
 }
+
+# load generations to dictionary
 for i, temp in enumerate(temperatures):
   log["generations"]["temp_"+str(temp)] = generations[i]
 
