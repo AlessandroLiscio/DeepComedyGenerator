@@ -1,7 +1,4 @@
-import json
 import time
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import figure
 
 from utils.preprocessing import *
 from generator import Generator
@@ -151,89 +148,89 @@ else:
 # initialize start string
 divine_comedy = files_list[files_names.index("tokenized_commedia.txt")]
 print(divine_comedy)
-# start = list(tf.keras.preprocessing.sequence.pad_sequences([flatten(encode_tokens(split_tokens(divine_comedy[:3]), str2idx))], maxlen=max_len)[0])
-# print("Start:\n", np.array(divine_comedy)[:3])
-#
-# # initialize list of generations
-# generations = []
-#
-# # choose the list of temperatures (one generation for each temperature)
-# temperatures = np.round(np.linspace(0.5, 1.5, num=11), 1)
-#
-# # generate a cantica for each temperature
-# print("\nGenerating new cantica: ")
-# for temp in temperatures:
-#
-#   # start timer
-#   t_start = time.time()
-#   print(f"- temperature {temp}... ", end="")
-#
-#   # generate cantica
-#   generated_string = generator.generate(str2idx = str2idx,
-#                                         start = start,
-#                                         eov = str2idx['</v>'],
-#                                         max_len = max_len,
-#                                         max_iterations=100,
-#                                         temperature=temp)
-#
-#   # decode the generated cantica and remove special tokens
-#   generated_string = clear_text(ints_to_text(generated_string, idx2str))
-#
-#   # stop timer
-#   t_gen = round(time.time() - t_start)
-#   print(f"completed ({int(t_gen/3600)}h {int(t_gen/60%60)}m {int(t_gen%60)}s)")
-#
-#   # append generated cantica to results
-#   generations.append(generated_string)
-#
-# #######
-# # LOG #
-# #######
-#
-# # stringify the model description for the file name
-# model_description = f"{generator.encoders}_{generator.decoders}_{generator.d_model}_{generator.dff}_{generator.heads}_{repetitions_production}_{repetitions_comedy}"
-#
-# # create the log dictionary
-# log = {
-#   "model": {
-#     "num_layers_encoder": generator.encoder,
-#     "num_layers_decoder": generator.decoder,
-#     "d_model": generator.d_model,
-#     "dff": generator.dff,
-#     "num_heads": generator.heads
-#     },
-#   "trainings": {
-#     "production": {
-#         "repetitions": repetitions_production,
-#         "time": t_production,
-#         "loss_history": loss_hist_production,
-#         "acc_history": acc_hist_production
-#     },
-#     "comedy": {
-#         "repetitions": repetitions_comedy,
-#         "time": t_comedy,
-#         "loss_history": loss_hist_comedy,
-#         "acc_history": acc_hist_comedy
-#     }
-#   },
-#   "generations": {}
-# }
-#
-# # load generations to dictionary
-# for i, temp in enumerate(temperatures):
-#   log["generations"]["temp_"+str(temp)] = generations[i]
-#
-# # save results to out_path
-# save_results(log, out_path)
-#
-# # print model summary
-# transformer.summary()
-#
-# # print training information
-# show_train_info(log)
-#
-# # print generations in tabular form
-# show_generations(log, temperatures)
-#
-# # plot loss and accuracy histories
-# plot_hist(loss_history, acc_history)
+start = list(tf.keras.preprocessing.sequence.pad_sequences([flatten(encode_tokens(split_tokens(divine_comedy[:3]), str2idx))], maxlen=max_len)[0])
+print("Start:\n", np.array(divine_comedy)[:3])
+
+# initialize list of generations
+generations = []
+
+# choose the list of temperatures (one generation for each temperature)
+temperatures = np.round(np.linspace(0.5, 1.5, num=11), 1)
+
+# generate a cantica for each temperature
+print("\nGenerating new cantica: ")
+for temp in temperatures:
+
+  # start timer
+  t_start = time.time()
+  print(f"- temperature {temp}... ", end="")
+
+  # generate cantica
+  generated_string = generator.generate(str2idx = str2idx,
+                                        start = start,
+                                        eov = str2idx['</v>'],
+                                        max_len = max_len,
+                                        max_iterations=100,
+                                        temperature=temp)
+
+  # decode the generated cantica and remove special tokens
+  generated_string = clear_text(ints_to_text(generated_string, idx2str))
+
+  # stop timer
+  t_gen = round(time.time() - t_start)
+  print(f"completed ({int(t_gen/3600)}h {int(t_gen/60%60)}m {int(t_gen%60)}s)")
+
+  # append generated cantica to results
+  generations.append(generated_string)
+
+#######
+# LOG #
+#######
+
+# stringify the model description for the file name
+model_description = f"{generator.encoders}_{generator.decoders}_{generator.d_model}_{generator.dff}_{generator.heads}_{repetitions_production}_{repetitions_comedy}"
+
+# create the log dictionary
+log = {
+  "model": {
+    "num_layers_encoder": generator.encoder,
+    "num_layers_decoder": generator.decoder,
+    "d_model": generator.d_model,
+    "dff": generator.dff,
+    "num_heads": generator.heads
+    },
+  "trainings": {
+    "production": {
+        "repetitions": repetitions_production,
+        "time": t_production,
+        "loss_history": loss_hist_production,
+        "acc_history": acc_hist_production
+    },
+    "comedy": {
+        "repetitions": repetitions_comedy,
+        "time": t_comedy,
+        "loss_history": loss_hist_comedy,
+        "acc_history": acc_hist_comedy
+    }
+  },
+  "generations": {}
+}
+
+# load generations to dictionary
+for i, temp in enumerate(temperatures):
+  log["generations"]["temp_"+str(temp)] = generations[i]
+
+# save results to out_path
+save_results(log, out_path)
+
+# print model summary
+transformer.summary()
+
+# print training information
+show_train_info(log)
+
+# print generations in tabular form
+show_generations(log, temperatures)
+
+# plot loss and accuracy histories
+plot_hist(loss_history, acc_history)
