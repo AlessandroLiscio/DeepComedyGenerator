@@ -9,7 +9,7 @@ def save_results(log, out_path):
     model_description = "_".join(
         log["model"]["encoders"],
         log["model"]["decoders"],
-        log["model"]["d_model"]
+        log["model"]["d_model"],
         log["model"]["dff"],
         log["model"]["heads"],
         log["trainings"]["production"]["repetitions"],
