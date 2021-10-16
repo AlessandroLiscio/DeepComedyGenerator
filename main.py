@@ -1,6 +1,7 @@
 import time
 
 from utils.preprocessing import *
+from utils.results import *
 from generator import Generator
 # from tokenizer import Tokenizer
 
@@ -24,7 +25,7 @@ epochs_comedy = 1
 
 # number of repetitions per dataset, instead of epochs
 repetitions_production = 0
-repetitions_comedy = 20 #70
+repetitions_comedy = 10 #70
 
 # append files' names in the desired order
 myorder = []
@@ -193,11 +194,11 @@ model_description = f"{generator.encoders}_{generator.decoders}_{generator.d_mod
 # create the log dictionary
 log = {
   "model": {
-    "num_layers_encoder": generator.encoder,
-    "num_layers_decoder": generator.decoder,
+    "encoders": generator.encoders,
+    "decoders": generator.decoders,
     "d_model": generator.d_model,
     "dff": generator.dff,
-    "num_heads": generator.heads
+    "heads": generator.heads
     },
   "trainings": {
     "production": {

@@ -6,11 +6,15 @@ from matplotlib.pyplot import figure
 def save_results(log, out_path):
 
     # stringify the model description for the file name
-    model_description = f"""{log["model"]["encoders"]}_
-{log["model"]["decoders"]}_{log["model"]["d_model"]}_
-{log["model"]["dff"]}_{log["model"]["heads"]}_
-{log["trainings"]["production"]["repetitions"]}_
-{log["trainings"]["comedy"]["repetitions"]}"""
+    model_description = "_".join(
+        log["model"]["encoders"],
+        log["model"]["decoders"],
+        log["model"]["d_model"]
+        log["model"]["dff"],
+        log["model"]["heads"],
+        log["trainings"]["production"]["repetitions"],
+        log["trainings"]["comedy"]["repetitions"]   
+    )
 
     # create destination folder if it doesn't exist
     if not os.path.exists(out_path):
@@ -22,6 +26,12 @@ def save_results(log, out_path):
     with open(log_file, 'w+') as fp:
         json.dump(log, fp, indent=4)
         print(f"log saved as {log_file}")
+
+    # extract the texts from the log
+    generations = []
+    for temp in log['generations']:
+        canto = log['generations'][temp] 
+        generations.append(canto.replace(' ,',',').replace(' .','.').replace(' !','!').replace(' ?','?').replace(' :',':').replace(' ;',';').split('\n'))
 
     # Save the generations as text files
     generations_files = []
