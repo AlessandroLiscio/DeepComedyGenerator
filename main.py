@@ -1,44 +1,78 @@
-import time
-
 from utils.preprocessing import *
 from utils.results import *
-from generator import Generator
+from utils.generator import Generator
 # from tokenizer import Tokenizer
+
+###################
+# PARSE ARGUMENTS #
+###################
+
+import argparse
+parser = argparse.ArgumentParser()
+
+parser.add_argument("--encoders", type=int,
+                    help="number of encoders in the generator model")
+parser.add_argument("--decoders", type=int,
+                    help="number of decoders in the generator model")
+parser.add_argument("--heads", type=int,
+                    help="number of attention heads in the generator model")
+parser.add_argument("--d_model", type=int,
+                    help="embedding size in the generator model")
+parser.add_argument("--dff", type=int,
+                    help="number of neurons in the ff-layers in the generator model")
+parser.add_argument("--dropout", type=int,
+                    help="dropout rate of the generator model")
+
+
+parser.add_argument("--epochs_production", type=int,
+                    help="number of training epochs on production dataset")
+parser.add_argument("--epochs_comedy", type=int,
+                    help="number of training epochs on comedy dataset")
+
+
+parser.add_argument("--in_path", type=str,
+                    help="path of the folder containing the input files")
+parser.add_argument("--out_path", type=str,
+                    help="path of the folder containing the output files")
+
+#TODO: implement verbosity
+#TODO: fix prints
+parser.add_argument("-v", "--verbose", action="store_true",
+                    help="increase output verbosity")
+args = parser.parse_args()
 
 #########
 # SETUP #
 #########
 
-# ATTENTION: assert d_model % self.num_heads == 0
+# files paths
+if not args.in_path:  in_path  = "data/"
+if not args.out_path: out_path = "results/"
+# if not args.in_path:  in_path  = '/content/drive/MyDrive/DC-gen/data/'
+# if not args.out_path:  out_path  = '/content/drive/MyDrive/DC-gen/results/'
 
 # model hyperparameters
-num_layers_encoder = 5
-num_layers_decoder = 5
-num_heads = 4
-d_model = 256
-dff = 512
-dropout_rate = 0.2
+# ATTENTION: assert d_model % heads == 0
+if not args.encoders: encoders = 5
+if not args.decoders: decoders = 5
+if not args.heads:    heads    = 4
+if not args.d_model:  d_model  = 256
+if not args.dff:      dff      = 512
+if not args.dropout:  dropout  = 0.2
 
-# one epoch is all you need
-epochs_production = 0
-epochs_comedy = 1
+# one epoch is all you need: number of repetitions per dataset, instead of epochs
+if not args.epochs_production: epochs_production = 0
+if not args.epochs_comedy:     epochs_comedy     = 70
 
-# number of repetitions per dataset, instead of epochs
-repetitions_production = 0
-repetitions_comedy = 10 #70
-
-# append files' names in the desired order
-myorder = []
+# append files' names in the desired training order
+train_order = []
 if epochs_production > 0:
-  # Sort files lists in custom order
+  # Sort files lists in custom train_order
   production_list = ['tokenized_convivio.txt','tokenized_vita.txt', 'tokenized_detto.txt','tokenized_fiore.txt']
   for filename in production_list:
-    myorder.append(filename)
+    train_order.append(filename)
 if epochs_comedy > 0:
-  myorder.append('tokenized_commedia.txt')
-
-in_path = "data/"
-out_path = "results/"
+  train_order.append('tokenized_commedia.txt')
 
 #############
 # LOAD DATA #
@@ -55,54 +89,56 @@ files_list, files_names = read_files(in_path + "tokenized/")
 files = {files_names[i]:files_list[i] for i in range(len(files_names))}
 
 # Create vocabularies
-vocab_size, str2idx, idx2str = create_vocab(files, myorder)
+vocab_size, str2idx, idx2str = create_vocab(files, train_order)
 
 # Print files' names and texts
 print("\n{}\n".format('='*45))
-print("myorder: ", myorder)
 print("Files: ", len(files))
 print("Files names:")
 for i, file_name in enumerate(files):
   print("\t{}- {}".format(i+1, file_name))
+print("Files train_order: ", train_order)
 print("\n{}\n".format('='*45))
 
 #####################
 # DATASETS CREATION #
 #####################
 
-# Production dataset
+## Production dataset
 if epochs_production > 0:
 
-    # Create Dante's Production datasets list
-    dataset_production = []
-    for file_name in myorder:
-      if not file_name == "tokenized_commedia.txt":
-        dataset_production.append(files[file_name])
+  # Create Dante's Production datasets list
+  dataset_production = []
+  for file_name in train_order:
+    if not file_name == "tokenized_commedia.txt":
+      dataset_production.append(files[file_name])
 
-    # Split input target for Dante's Production dataset
-    print("Generating Dante's Production")
-    dataset_production, real_size_production = split_input_target_production(
-      dataset_production, str2idx, inp_len = 3, tar_len = 3, repetitions = repetitions_production)
-    print("Real size production: ", real_size_production)
+  # Split input target for Dante's Production dataset
+  print("Generating Dante's Production")
+  dataset_production, original_length_production = split_input_target_production(
+    dataset_production, str2idx, inp_len = 3, tar_len = 3, repetitions = epochs_production)
+  print("Real size production: ", original_length_production)
 
-# Comedy dataset
+## Comedy dataset
 if epochs_comedy > 0:
 
-    # Split input target for Divine Comedy dataset
-    print("Generating Divine Comedy")
-    dataset_comedy, max_len, real_size_comedy = split_input_target_comedy(
-          files["tokenized_commedia.txt"], str2idx, inp_len = 3, tar_len = 4, repetitions = repetitions_comedy)
-    print("Real size comedy: ", real_size_comedy)
+  # Split input target for Divine Comedy dataset
+  print("Generating Divine Comedy")
+  dataset_comedy, max_len, original_length_comedy = split_input_target_comedy(
+    files["tokenized_commedia.txt"], str2idx, inp_len = 3, tar_len = 4, repetitions = epochs_comedy)
+  print("Real size comedy: ", original_length_comedy)
 
 # Print samples of the generated Comedy dataset
 for (batch, (inputs, targets)) in enumerate(dataset_comedy.take(1)):
   print("\n{} [ Dataset Sample ] {}\n".format("="*13, "="*13))
-  print("-- input:\n\n{}\n\n-- target:\n\n{}\n".format(clear_text(ints_to_text(inputs[0], idx2str)),clear_text(ints_to_text(targets[0], idx2str))))
+  print("-- input:\n\n{}\n\n-- target:\n\n{}".format(clear_text(ints_to_text(inputs[0], idx2str)),clear_text(ints_to_text(targets[0], idx2str))))
   print("{}".format("="*45))
 
 #############
 # TOKENIZER #
 #############
+
+#TODO: implement tokenizer
 
 # from tokenizer import Tokenizer
 # tokenizer = Tokenizer()
@@ -113,12 +149,14 @@ for (batch, (inputs, targets)) in enumerate(dataset_comedy.take(1)):
 #############
 
 generator = Generator(vocab_size = vocab_size,
-                      encoders = 5, 
-                      decoders = 5, 
-                      d_model = 256,
-                      dff = 512,
-                      heads = 4,
-                      dropout = 0.2)
+                      str2idx = str2idx,
+                      idx2str = idx2str,
+                      encoders = encoders, 
+                      decoders = decoders, 
+                      d_model = d_model,
+                      dff = dff,
+                      heads = heads,
+                      dropout = dropout)
 
 print(generator)
 
@@ -128,7 +166,7 @@ print(generator)
 
 # Train on Dante's production
 if epochs_production > 0:
-  t_production, loss_hist_production, acc_hist_production = generator.train_model(dataset_production, epochs_production, real_size_production)
+  t_production, loss_hist_production, acc_hist_production = generator.train_model(dataset_production, original_length_production)
 else:
   t_production = 0
   loss_hist_production = ["0"]
@@ -136,82 +174,53 @@ else:
 
 # Train on divine comedy
 if epochs_comedy > 0:
-  t_comedy, loss_hist_comedy, acc_hist_comedy = generator.train_model(dataset_comedy, epochs_comedy, real_size_comedy)
+  t_comedy, loss_hist_comedy, acc_hist_comedy = generator.train_model(dataset_comedy, original_length_comedy)
 else:
   t_comedy = 0
   loss_hist_comedy = ["0"]
   acc_hist_comedy = ["0"]
 
+# Save weights
+generator.save_weights(epochs_comedy, out_path)
+
 ##############
 # GENERATION #
 ##############
 
-# initialize start string
-divine_comedy = files_list[files_names.index("tokenized_commedia.txt")]
-print(divine_comedy)
-start = list(tf.keras.preprocessing.sequence.pad_sequences([flatten(encode_tokens(split_tokens(divine_comedy[:3]), str2idx))], maxlen=max_len)[0])
-print("Start:\n", np.array(divine_comedy)[:3])
+# Choose starting tercet
+dc_start = files_list[files_names.index("tokenized_commedia.txt")][:3]
 
-# initialize list of generations
-generations = []
-
-# choose the list of temperatures (one generation for each temperature)
+# Choose the list of temperatures (one generation for each temperature)
 temperatures = np.round(np.linspace(0.5, 1.5, num=11), 1)
 
-# generate a cantica for each temperature
-print("\nGenerating new cantica: ")
-for temp in temperatures:
+# Generate one cantica (100 verses) for each temperature, starting from input tercet
+generations = generator.generate_from_tercet(dc_start, temperatures, max_len, 100)
 
-  # start timer
-  t_start = time.time()
-  print(f"- temperature {temp}... ", end="")
-
-  # generate cantica
-  generated_string = generator.generate(str2idx = str2idx,
-                                        start = start,
-                                        eov = str2idx['</v>'],
-                                        max_len = max_len,
-                                        max_iterations=100,
-                                        temperature=temp)
-
-  # decode the generated cantica and remove special tokens
-  generated_string = clear_text(ints_to_text(generated_string, idx2str))
-
-  # stop timer
-  t_gen = round(time.time() - t_start)
-  print(f"completed ({int(t_gen/3600)}h {int(t_gen/60%60)}m {int(t_gen%60)}s)")
-
-  # append generated cantica to results
-  generations.append(generated_string)
-
-#######
-# LOG #
-#######
-
-# stringify the model description for the file name
-model_description = f"{generator.encoders}_{generator.decoders}_{generator.d_model}_{generator.dff}_{generator.heads}_{repetitions_production}_{repetitions_comedy}"
+###########
+# RESULTS #
+###########
 
 # create the log dictionary
 log = {
   "model": {
     "encoders": generator.encoders,
     "decoders": generator.decoders,
+    "heads": generator.heads,
     "d_model": generator.d_model,
-    "dff": generator.dff,
-    "heads": generator.heads
+    "dff": generator.dff
     },
   "trainings": {
     "production": {
-        "repetitions": repetitions_production,
-        "time": t_production,
-        "loss_history": loss_hist_production,
-        "acc_history": acc_hist_production
+      "epochs": epochs_production,
+      "time": t_production,
+      "loss_history": loss_hist_production,
+      "acc_history": acc_hist_production
     },
     "comedy": {
-        "repetitions": repetitions_comedy,
-        "time": t_comedy,
-        "loss_history": loss_hist_comedy,
-        "acc_history": acc_hist_comedy
+      "epochs": epochs_comedy,
+      "time": t_comedy,
+      "loss_history": loss_hist_comedy,
+      "acc_history": acc_hist_comedy
     }
   },
   "generations": {}
@@ -224,14 +233,11 @@ for i, temp in enumerate(temperatures):
 # save results to out_path
 save_results(log, out_path)
 
-# print model summary
-transformer.summary()
-
 # print training information
 show_train_info(log)
 
-# print generations in tabular form
-show_generations(log, temperatures)
+# print generations in tabular form and save to file
+tabular_generations(log, out_path)
 
 # plot loss and accuracy histories
-plot_hist(loss_history, acc_history)
+plot_hist(log, out_path)

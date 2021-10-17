@@ -8,22 +8,27 @@ import tensorflow as tf
 
 # Read files and save them in list_of_lists
 def read_files(directory):
+
+  '''reads all .txt files in 'directory' and returns:
+      - files_list : list of list of strings, where each
+                     list of string is one row of the text file
+      - files_names : list of strings'''
+
   files_list = []
   files_names = []
+
   for filename in os.listdir(directory):
-      if filename.endswith(".txt"):
- 
-          path_to_file = os.path.join(directory, filename)
- 
-          # Read file
-          text = open(path_to_file, 'r').read().lower()
- 
-          # generate list from text by splitting lines
-          text_list = text.splitlines()
-          files_list.append(text_list)
-          files_names.append(filename)
-      else:
-          continue
+    if not filename.endswith(".txt"): continue
+    else:
+
+      # Read file
+      path_to_file = os.path.join(directory, filename)
+      text = open(path_to_file, 'r').read().lower()
+
+      # generate list from text by splitting lines
+      text_list = text.splitlines()
+      files_list.append(text_list)
+      files_names.append(filename)
  
   return files_list, files_names
 
@@ -32,8 +37,8 @@ def read_files(directory):
 ###################
 
 # Flattens list
-def flatten(data):
-  return [token for verse in data for token in verse]
+def flatten(in_list):
+  return [token for verse in in_list for token in verse]
 
 # Replaces special tokens with more readable ones
 def clear_text(text):
@@ -53,7 +58,7 @@ def encode_tokens(data, str2idx):
     encoded.append(text_list_to_int(verse, str2idx))
   return encoded
 
-# Create vocabulary and mappings
+# Create vocabulary and mappings from input list of lists
 def create_vocab(files, myorder):
 
   # flatten list_of_lists to list of tokens
@@ -96,16 +101,11 @@ def create_vocab(files, myorder):
     vocab.remove('')
   vocab.insert(0, '')
 
-  vocab_size = len(vocab)
-
   # Creating a mapping from unique characters to indices
   str2idx = {u:i for i, u in enumerate(vocab)}
   idx2str = np.array(vocab)
 
-  # print("\n\nvocabulary size: {} tokens".format(vocab_size))
-  # print("\nstr2idx:\n", str2idx)
-  # print("\nidx2str:\n", idx2str)
-  return vocab_size, str2idx, idx2str
+  return len(vocab), str2idx, idx2str
 
 # Converts our text values to numeric.
 def text_list_to_int(string_list, str2idx):
@@ -119,11 +119,14 @@ def ints_to_text(ints, idx2str):
     pass
   return ''.join(idx2str[ints])
 
-####################
-# DATASET CREATION #
-####################
+#####################
+# DATASETS CREATION #
+#####################
 
 def create_dataset(inputs, targets, batch_size = 64, repetitions = 100):
+
+  '''creates cached and prefetched datasets from 'inputs' and 'targets' lists'''
+
   # Create dataset from inputs and targets
   dataset = tf.data.Dataset.from_tensor_slices((
       tf.keras.preprocessing.sequence.pad_sequences(inputs), 
@@ -132,14 +135,16 @@ def create_dataset(inputs, targets, batch_size = 64, repetitions = 100):
   dataset = dataset.cache()
   # create batched dataset and shuffle it
   buffer_size = len(dataset)
-  dataset = dataset.shuffle(buffer_size, reshuffle_each_iteration=True).repeat(repetitions).padded_batch(batch_size, drop_remainder=True)
+  dataset = dataset.shuffle(buffer_size, reshuffle_each_iteration=True
+            ).repeat(repetitions).padded_batch(batch_size, drop_remainder=True)
   # This allows later elements to be prepared while the current is being processed.
   dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
   return buffer_size, dataset
 
-# split dataset in input-target couples
 def split_input_target_comedy(text_list, str2idx, inp_len=3, tar_len=4, skip=1, 
                               batch_size=64, repetitions=100):
+
+  '''splits comedy dataset in input-target couples'''
   
   inputs = []
   targets = []
@@ -164,10 +169,11 @@ def split_input_target_comedy(text_list, str2idx, inp_len=3, tar_len=4, skip=1,
 
   return dataset, max_len, real_size_batched
 
-# split dataset in input-target couples
 def split_input_target_production(datasets, str2idx, inp_len=3, tar_len=3, skip=1, 
                                   batch_size=64, repetitions=100):
   
+  '''splits production dataset in input-target couples'''
+
   datasets_list = []
   inputs = []
   targets = []

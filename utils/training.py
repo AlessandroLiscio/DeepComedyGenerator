@@ -5,6 +5,9 @@ import tensorflow as tf
 #############
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+
+  '''custom schedule class for computing model learning rate'''
+  
   def __init__(self, d_model, warmup_steps=4000):
     super(CustomSchedule, self).__init__()
     
@@ -23,8 +26,10 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 # TRAINING PROGRESS BAR #
 #########################
 
-# prints model training progress
 def print_progress(done:int, total:int, *args):
+
+  '''prints model training progress'''
+
   maxlen = 25
   bars = round(done*maxlen/total)
   print("\r[{}{}] {:3}%".format("="*int(bars),
