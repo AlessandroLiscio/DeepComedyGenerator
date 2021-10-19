@@ -15,14 +15,14 @@ def get_model_name(log):
 
     '''stringify the model description for the file name'''
 
-    return"_".join((
+    return "_".join((
         f"{log['model']['encoders']}",
         f"{log['model']['decoders']}",
         f"{log['model']['heads']}",
         f"{log['model']['d_model']}",
         f"{log['model']['dff']}",
-        f"{log['trainings']['production']['repetitions']}",
-        f"{log['trainings']['comedy']['repetitions']}"   
+        f"{log['trainings']['production']['epochs']}",
+        f"{log['trainings']['comedy']['epochs']}"   
     ))
 
 def save_results(log, out_path:str = 'results/'):
@@ -32,9 +32,6 @@ def save_results(log, out_path:str = 'results/'):
 
     # stringify the model description for the file name
     model_name = get_model_name(log)
-
-    # create results folder if it doesn't exist
-    create_folder(out_path)
 
     # create generations folder if it doesn't exist
     generations_path = out_path+"generations/"
@@ -90,6 +87,7 @@ def tabular_generations(log, out_path='results/'):
     # Generations
     generations = []
     temperatures = []
+    max_len = 0
     for temp in log['generations']:
         canto = log['generations'][temp]
         canto = canto.replace(' ,',',')
@@ -101,6 +99,8 @@ def tabular_generations(log, out_path='results/'):
         canto = canto.split('\n')
         generations.append(canto)
         temperatures.append(temp)
+        if len(log['generations'][temp]) > max_len:
+            max_len = len(log['generations'][temp])
 
     # header of the table
     head_line = "\n\t    "
@@ -110,10 +110,13 @@ def tabular_generations(log, out_path='results/'):
     
     # organize by columns
     rows = []
-    for row_idx in range(len(generations[0])):
+    for row_idx in range(0, max_len):
         row = ""
-        for temp in range(len(temperatures)):
-            row += "{:<45}".format(generations[temp][row_idx])
+        for temp in range(0, len(temperatures)-1):
+            if row_idx >= len(generations[temp]):
+                row += " "*45
+            else:
+                row += "{:<45}".format(generations[temp][row_idx])
         rows.append(row)
 
     # print out
@@ -125,7 +128,7 @@ def tabular_generations(log, out_path='results/'):
     with open(out_path+"gen_table.txt", "w+") as f:
         f.write(head_line)
         for row in rows:
-            f.write(row)
+            f.write(row+'\n')
 
 def plot_hist(log, out_path='results/'):
 

@@ -7,62 +7,84 @@ from utils.generator import Generator
 # PARSE ARGUMENTS #
 ###################
 
-import argparse
-parser = argparse.ArgumentParser()
+# import argparse
+# parser = argparse.ArgumentParser()
 
-parser.add_argument("--encoders", type=int,
-                    help="number of encoders in the generator model")
-parser.add_argument("--decoders", type=int,
-                    help="number of decoders in the generator model")
-parser.add_argument("--heads", type=int,
-                    help="number of attention heads in the generator model")
-parser.add_argument("--d_model", type=int,
-                    help="embedding size in the generator model")
-parser.add_argument("--dff", type=int,
-                    help="number of neurons in the ff-layers in the generator model")
-parser.add_argument("--dropout", type=int,
-                    help="dropout rate of the generator model")
-
-
-parser.add_argument("--epochs_production", type=int,
-                    help="number of training epochs on production dataset")
-parser.add_argument("--epochs_comedy", type=int,
-                    help="number of training epochs on comedy dataset")
+# parser.add_argument("--encoders", type=int,
+#                     help="number of encoders in the generator model")
+# parser.add_argument("--decoders", type=int,
+#                     help="number of decoders in the generator model")
+# parser.add_argument("--heads", type=int,
+#                     help="number of attention heads in the generator model")
+# parser.add_argument("--d_model", type=int,
+#                     help="embedding size in the generator model")
+# parser.add_argument("--dff", type=int,
+#                     help="number of neurons in the ff-layers in the generator model")
+# parser.add_argument("--dropout", type=int,
+#                     help="dropout rate of the generator model")
 
 
-parser.add_argument("--in_path", type=str,
-                    help="path of the folder containing the input files")
-parser.add_argument("--out_path", type=str,
-                    help="path of the folder containing the output files")
+# parser.add_argument("--epochs_production", type=int,
+#                     help="number of training epochs on production dataset")
+# parser.add_argument("--epochs_comedy", type=int,
+#                     help="number of training epochs on comedy dataset")
 
-#TODO: implement verbosity
-#TODO: fix prints
-parser.add_argument("-v", "--verbose", action="store_true",
-                    help="increase output verbosity")
-args = parser.parse_args()
+
+# parser.add_argument("--in_path", type=str,
+#                     help="path of the folder containing the input files")
+# parser.add_argument("--out_path", type=str,
+#                     help="path of the folder containing the output files")
+
+# #TODO: implement verbosity
+# #TODO: fix prints
+# parser.add_argument("-v", "--verbose", action="store_true",
+#                     help="increase output verbosity")
+# args = parser.parse_args()
 
 #########
 # SETUP #
 #########
 
+# # files paths
+# if not args.in_path:  in_path  = "data/"
+# if not args.out_path: out_path = "results/"
+
+# # model hyperparameters
+# # ATTENTION: assert d_model % heads == 0
+# if not args.encoders: encoders = 5
+# if not args.decoders: decoders = 5
+# if not args.heads:    heads    = 4
+# if not args.d_model:  d_model  = 256
+# if not args.dff:      dff      = 512
+# if not args.dropout:  dropout  = 0.2
+
+# # one epoch is all you need: number of repetitions per dataset, instead of epochs
+# if not args.epochs_production: epochs_production = 0
+# if not args.epochs_comedy:     epochs_comedy     = 70
+
 # files paths
-if not args.in_path:  in_path  = "data/"
-if not args.out_path: out_path = "results/"
-# if not args.in_path:  in_path  = '/content/drive/MyDrive/DC-gen/data/'
-# if not args.out_path:  out_path  = '/content/drive/MyDrive/DC-gen/results/'
+in_path  = 'data/'
+out_path  = 'results/'
+weights_path = 'weights/'
+# in_path  = '/content/drive/MyDrive/DC-gen/data/'
+# out_path  = '/content/drive/MyDrive/DC-gen/results/'
+# weights_path = '/content/drive/MyDrive/DC-gen/weights/'
+
+for folder in [out_path, weights_path]:
+  create_folder(folder)
 
 # model hyperparameters
 # ATTENTION: assert d_model % heads == 0
-if not args.encoders: encoders = 5
-if not args.decoders: decoders = 5
-if not args.heads:    heads    = 4
-if not args.d_model:  d_model  = 256
-if not args.dff:      dff      = 512
-if not args.dropout:  dropout  = 0.2
+encoders = 5
+decoders = 5
+heads    = 4
+d_model  = 256
+dff      = 512
+dropout  = 0.2
 
 # one epoch is all you need: number of repetitions per dataset, instead of epochs
-if not args.epochs_production: epochs_production = 0
-if not args.epochs_comedy:     epochs_comedy     = 70
+epochs_production = 0
+epochs_comedy     = 70
 
 # append files' names in the desired training order
 train_order = []
@@ -164,9 +186,12 @@ print(generator)
 # TRAINING #
 ############
 
+ckpt = False
+
 # Train on Dante's production
 if epochs_production > 0:
-  t_production, loss_hist_production, acc_hist_production = generator.train_model(dataset_production, original_length_production)
+  t_production, loss_hist_production, acc_hist_production = generator.train_model(
+    dataset_production, "production", original_length_production, ckpt)
 else:
   t_production = 0
   loss_hist_production = ["0"]
@@ -174,14 +199,15 @@ else:
 
 # Train on divine comedy
 if epochs_comedy > 0:
-  t_comedy, loss_hist_comedy, acc_hist_comedy = generator.train_model(dataset_comedy, original_length_comedy)
+  t_comedy, loss_hist_comedy, acc_hist_comedy = generator.train_model(
+    dataset_comedy, "comedy", original_length_comedy, ckpt)
 else:
   t_comedy = 0
   loss_hist_comedy = ["0"]
   acc_hist_comedy = ["0"]
 
 # Save weights
-generator.save_weights(epochs_comedy, out_path)
+generator.save_model_weights(weights_path)
 
 ##############
 # GENERATION #
@@ -200,7 +226,7 @@ generations = generator.generate_from_tercet(dc_start, temperatures, max_len, 10
 # RESULTS #
 ###########
 
-# create the log dictionary
+# Create the log dictionary
 log = {
   "model": {
     "encoders": generator.encoders,
@@ -226,18 +252,18 @@ log = {
   "generations": {}
 }
 
-# load generations to dictionary
+# Load generations to dictionary
 for i, temp in enumerate(temperatures):
   log["generations"]["temp_"+str(temp)] = generations[i]
 
-# save results to out_path
+# Save results to out_path
 save_results(log, out_path)
 
-# print training information
+# Print training information
 show_train_info(log)
 
-# print generations in tabular form and save to file
-tabular_generations(log, out_path)
-
-# plot loss and accuracy histories
+# Plot loss and accuracy histories
 plot_hist(log, out_path)
+
+# Print generations in tabular form and save to file
+tabular_generations(log, out_path)

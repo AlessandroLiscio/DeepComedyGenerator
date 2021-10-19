@@ -1,5 +1,10 @@
 # Custom
-results/
+weights/
+# results/
+temp.py
+
+# extra
+dc_dataset_prof/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

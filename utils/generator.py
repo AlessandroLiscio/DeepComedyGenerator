@@ -2,6 +2,7 @@ import time
 import tensorflow as tf
 from utils.transformer import Transformer, create_masks
 from utils.training import print_progress, CustomSchedule
+from utils.results import create_folder
 from utils.preprocessing import *
 
 _train_step_signature = [
@@ -11,18 +12,31 @@ _train_step_signature = [
 
 class Generator():
 
-    def __init__(self, vocab_size:int, str2idx, idx2str, encoders:int = 5, decoders:int = 5, heads:int = 4, d_model:int = 256, dff:int = 512, dropout:float = 0.2):
+    def __init__(self, vocab_size:int, str2idx, idx2str,
+                    encoders:int = 5, decoders:int = 5, heads:int = 4,
+                    d_model:int = 256, dff:int = 512, dropout:float = 0.2,
+                    epochs_production:int = 0, epochs_comedy:int = 0):
     
-        # initialize transformer model parameters
-        self.vocab_size = vocab_size
+        # initialize mappings
         self.str2idx = str2idx
         self.idx2str = idx2str
+
+        # initialize transformer model parameters
+        self.vocab_size = vocab_size
         self.encoders = encoders
         self.decoders = decoders
         self.heads = heads
         self.d_model = d_model
         self.dff = dff
         self.dropout = dropout
+
+        # initialize training epochs
+        self.epochs_production = epochs_production
+        self.epochs_comedy = epochs_comedy
+
+        # initialize trained epochs
+        self.trained_epochs_production = 0
+        self.trained_epochs_comedy = 0
 
         # transformer model instantiation
         self.model = Transformer(encoders,
@@ -39,6 +53,7 @@ class Generator():
         # optimizer
         self.lr = CustomSchedule(self.d_model)
         self.optimizer = tf.keras.optimizers.Adam(self.lr, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
+
         # training metrics definition
         self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
         self.train_loss = tf.keras.metrics.Mean(name='train_loss')
@@ -58,6 +73,10 @@ class Generator():
             f"- optimizer: {str(type(self.optimizer))[:-2].split('.')[-1]}",
             f"- loss: {str(type(self.loss_object))[:-2].split('.')[-1]}",
             f"- metric: {str(type(self.train_accuracy))[:-2].split('.')[-1]}",
+            f"- epochs_production: {self.epochs_production}",
+            f"- epochs_comedy: {self.epochs_comedy}",
+            f"- trained_epochs_production: {self.trained_epochs_production}",
+            f"- trained_epochs_comedy: {self.trained_epochs_comedy}",
             ""
         ))
 
@@ -254,14 +273,19 @@ class Generator():
         self.train_accuracy(tar_real, predictions)
 
     
-    def train_model(self, dataset, original_length:int):
+    def train_model(self, dataset, dataset_name, original_length:int,
+                    weights_path:str = "weights/", save_checkpoints:bool = False):
 
         '''train model on target dataset. As the dataset has been
         repeated several times (each time singularly shuffled)
         instead of using the concept of "epochs" on the same dataset,
         the original dataset length is required as input, in order to
         update training metrics and histories at each dataset
-        repetition (which basically counts as an "epoch")'''
+        repetition (which basically counts as an "epoch").
+        Based on 'dataset_name', at each epoch, the generator parameters
+        'epochs_production' or 'epochs_comedy' are updated.'''
+
+        assert (dataset_name == "comedy" or dataset_name == "production")
 
         # start timer
         start = time.time()
@@ -290,7 +314,7 @@ class Generator():
                 )))
 
             # update metrics and training history at each epoch
-            if batch != 0 and (batch) % original_length == 0:
+            if batch != 0 and batch % original_length == 0:
 
                 # Append values to histories
                 loss_history.append('{:.4f}'.format(self.train_loss.result()))
@@ -300,6 +324,17 @@ class Generator():
                 self.train_loss.reset_states()
                 self.train_accuracy.reset_states()
                 epoch +=1
+
+                # Update generator trained epochs
+                if dataset_name == "comedy":
+                    self.trained_epochs_comedy += 1
+                else:
+                    self.trained_epochs_production += 1
+
+            # save model weights every 10 epochs
+            if save_checkpoints:
+                if batch != 0 and batch % original_length*10 == 0:
+                    self.save_model_weights(weights_path)
         
         # append last values to histories
         loss_history.append('{:.4f}'.format(self.train_loss.result()))
@@ -315,54 +350,86 @@ class Generator():
     # WEIGHTS #
     ###########
 
-    def save_weights(self, epoch:int, out_path:str = "results/"):
+    def get_model_name(self):
 
-        '''saves the weights of the model to target path. The name
-        of the file is based on the instantiated model's parameters and,
-        if given, number of training epochs'''
+        '''stringify the model description for the file name'''
 
-        # stringify the model description for the file name
-        model_description = "_".join((
-            f"{self.model.encoders}",
-            f"{self.model.decoders}",
-            f"{self.model.heads}",
-            f"{self.model.d_model}",
-            f"{self.model.dff}",
-            f"{str(epoch)}"
+        return "_".join((
+            f"{self.encoders}",
+            f"{self.decoders}",
+            f"{self.heads}",
+            f"{self.d_model}",
+            f"{self.dff}",
+            f"{self.epochs_production}",
+            f"{self.epochs_comedy}"
         ))
 
+    def save_model_weights(self, path:str = "weights/"):
+
+        '''saves the weights of the model to target path. The name
+        of the file is based on the instantiated model's parameters'''
+
+        # get model name for the file name
+        model_name = self.get_model_name()
+
         # create weights folder if it doesn't exist
-        w_path = out_path + "weights/"
+        create_folder(path)
+
+        # create model's weights folder 
+        w_path = path + model_name + "/"
+        create_folder(w_path)
+
+        # create model's weight checkpoint folder
+        w_path += f"{self.trained_epochs_production}_{self.trained_epochs_comedy}/"
         create_folder(w_path)
 
         # save weights
         try:
-            w_path = w_path+model_description
+            w_path = w_path+model_name
             self.model.save_weights(w_path)
-            print(f"Generator model weights saved to: {w_path}" )
-        except e:
+        except:
             print(f"ERROR: problem saving weights to {w_path}")
 
-    def load_weights(self, epoch:int, path:str = "weights/"):
+    def load_model_weights(self, path:str = "weights/"):
 
         '''loads the weights of the model from input path, based on the
-        instantiated model's parameters and, if given, number of
-        training epochs'''
+        instantiated model's parameters'''
 
-        # stringify the model description for the file name
-        model_description = "_".join((
-            f"{self.model.encoders}",
-            f"{self.model.decoders}",
-            f"{self.model.d_model}",
-            f"{self.model.dff}",
-            f"{self.model.heads}",
-            f"{str(epoch)}" 
-        ))
+        # get model name for the file name
+        model_name = self.get_model_name()
 
-        # load weights
+        # load the right checkpoint, based on generator 'trained_epochs' parameters.
+        # If not found, the weights will be loaded from the checkpoint with the
+        # highest number of trained epochs 
+        w_path = f"{path}{model_name}/"
+        ckpt_path = w_path + f"{self.trained_epochs_production}_{self.trained_epochs_comedy}/"
+
         try:
-            w_path = path+model_description
-            self.model.load_weights(w_path)
-            print(f"Generator model weights loaded from: {w_path}" )
-        except e:
+            # load model's checkpoint
+            if os.path.isdir(ckpt_path):
+                self.model.load_weights(ckpt_path+model_name)
+            else:
+                print("".join((
+                    "weights not found for ",
+                    f"trained_epochs_production = {self.trained_epochs_production} and ",
+                    f"trained_epochs_comedy = {self.trained_epochs_comedy}.",
+                    "Loading weights from checkpoint with highest number of trained epochs."
+                )))
+
+                # find model's checkpoint with the most trained epochs
+                max_epochs = 0
+                for entry in os.scandir(w_path):
+                    if entry.is_dir():
+                        ckpt = entry.path.split("/")[-1]
+                        epochs_total = 0
+                        for epochs in ckpt.split("_"):
+                            epochs_total += int(epochs)
+                        if epochs_total > max_epochs:
+                            max_epochs = epochs_total
+                            ckpt_path = entry.path + "/"
+
+                # load weights
+                self.model.load_weights(ckpt_path+model_name)
+                print("Loaded weights from " + ckpt_path)
+        except:
             print(f"ERROR: problem loading weights from {w_path}")
