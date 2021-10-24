@@ -17,7 +17,7 @@ has_tercets = ['commedia.txt', 'commedia_squares.txt', 'commedia_quotesless_squa
 
 # REMOVE PUNCTUATION (DATASET CHARS ONLY)
 rm_quotes = False
-rm_punctuation = False
+rm_punctuation = True
 assert not rm_quotes == rm_punctuation == True
 
 if rm_quotes:
@@ -53,50 +53,51 @@ for filename in os.listdir(original_path):
         # tokenize verses
         for verse in text:
 
-            # replace characters
-            verse = verse.replace(' ', f' {sep} ')
-            verse = verse.replace('|', ' ')
+            if len(verse.split("|")) -1  == 11:
 
-            # remove punctuations
-            if rm_punctuation:
-                for char in verse:
-                    if char in punctuation:
-                        verse = verse.replace(char, '')
-            elif rm_quotes:
-                verse = verse.replace('»', '')
-                verse = verse.replace('«', '')
-                verse = verse.replace('“', '')
-                verse = verse.replace('”', '')
-                verse = verse.replace('"', '')
+                # replace characters
+                verse = verse.replace('|', sep)
 
-            # clean remaining
-            verse = verse.replace('   ', ' ')
-            verse = verse.replace('  ', ' ')
-            verse = verse.replace('\n', '')
+                # remove punctuations
+                if rm_punctuation:
+                    for char in verse:
+                        if char in punctuation:
+                            verse = verse.replace(char, '')
+                elif rm_quotes:
+                    verse = verse.replace('»', '')
+                    verse = verse.replace('«', '')
+                    verse = verse.replace('“', '')
+                    verse = verse.replace('”', '')
+                    verse = verse.replace('"', '')
 
-            # add sov and eov tokens to verse
-            verse = sov + verse + ' ' + eov
-            
-            # manage tercets if needed
-            if filename in has_tercets:
-                if verse_count == 1:
-                    verse = sot + ' ' + verse
-                elif verse_count == 3:
-                    verse_count = 0    
-                verse_count += 1
+                # clean remaining
+                verse = verse.replace('   ', ' ')
+                verse = verse.replace('  ', ' ')
+                verse = verse.replace('\n', '')
 
-            # special cases management
-            if '<V> ' not in verse:
-                verse = verse.replace('<V>', '<V> ')
+                # add final spaces for syllables coherence
+                if verse[-1] not in (punctuation+" "):
+                    verse += " "
 
-            # append verse to tokenized verses list
-            tokenized.append(verse)
+                # add sov and eov tokens to verse
+                verse = sov + verse + sep + eov
+                
+                # manage tercets if needed
+                if filename in has_tercets:
+                    if verse_count == 1:
+                        verse = sot + verse
+                    elif verse_count == 3:
+                        verse_count = 0    
+                    verse_count += 1
+
+                # append verse to tokenized verses list
+                tokenized.append(verse)
 
         # save tokenized text
         out_name = f'tokenized/tokenized_{filename}'
         if rm_quotes: out_name = out_name.replace('.txt','_quotesless.txt')
         elif rm_punctuation: out_name = out_name.replace('.txt', '_punctuationless.txt')
-        with open(out_name, 'w') as f:
+        with open(out_name.replace(".txt", "_spaces_eleven.txt"), 'w') as f:
             for verse in tokenized:
                 # print(verse)
                 f.write(verse+'\n')

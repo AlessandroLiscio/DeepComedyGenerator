@@ -70,6 +70,8 @@ weights_path = 'weights/'
 # out_path  = '/content/drive/MyDrive/DC-gen/results/'
 # weights_path = '/content/drive/MyDrive/DC-gen/weights/'
 
+comedy_filename = 'tokenized_commedia_punctuationless_spaces_eleven.txt'
+
 for folder in [out_path, weights_path]:
   create_folder(folder)
 
@@ -94,7 +96,7 @@ if epochs_production > 0:
   for filename in production_list:
     train_order.append(filename)
 if epochs_comedy > 0:
-  train_order.append('tokenized_commedia.txt')
+  train_order.append(comedy_filename)
 
 #############
 # LOAD DATA #
@@ -111,7 +113,7 @@ files_list, files_names = read_files(in_path + "tokenized/")
 files = {files_names[i]:files_list[i] for i in range(len(files_names))}
 
 # Create vocabularies
-vocab_size, str2idx, idx2str = create_vocab(files, train_order)
+words_vocab, alphas_start, syls_vocab_size, str2idx, idx2str = create_vocabs(files, train_order)
 
 # Print files' names and texts
 print("\n{}\n".format('='*45))
@@ -132,7 +134,7 @@ if epochs_production > 0:
   # Create Dante's Production datasets list
   dataset_production = []
   for file_name in train_order:
-    if not file_name == "tokenized_commedia.txt":
+    if not file_name == comedy_filename:
       dataset_production.append(files[file_name])
 
   # Split input target for Dante's Production dataset
@@ -147,7 +149,7 @@ if epochs_comedy > 0:
   # Split input target for Divine Comedy dataset
   print("Generating Divine Comedy")
   dataset_comedy, max_len, original_length_comedy = split_input_target_comedy(
-    files["tokenized_commedia.txt"], str2idx, inp_len = 3, tar_len = 4, repetitions = epochs_comedy)
+    files[comedy_filename], str2idx, inp_len = 3, tar_len = 4, repetitions = epochs_comedy)
   print("Real size comedy: ", original_length_comedy)
 
 # Print samples of the generated Comedy dataset
@@ -170,9 +172,11 @@ for (batch, (inputs, targets)) in enumerate(dataset_comedy.take(1)):
 # GENERATOR #
 #############
 
-generator = Generator(vocab_size = vocab_size,
+generator = Generator(tokens_vocab_size = syls_vocab_size,
                       str2idx = str2idx,
                       idx2str = idx2str,
+                      words_vocab = words_vocab,
+                      alphas_start = alphas_start,
                       encoders = encoders, 
                       decoders = decoders, 
                       d_model = d_model,
@@ -214,7 +218,7 @@ generator.save_model_weights(weights_path)
 ##############
 
 # Choose starting tercet
-dc_start = files_list[files_names.index("tokenized_commedia.txt")][:3]
+dc_start = files_list[files_names.index(comedy_filename)][:3]
 
 # Choose the list of temperatures (one generation for each temperature)
 temperatures = np.round(np.linspace(0.5, 1.5, num=11), 1)

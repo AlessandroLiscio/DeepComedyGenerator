@@ -17,7 +17,7 @@ has_tercets = ['commedia.txt', 'commedia_squares.txt', 'commedia_quotesless_squa
 
 # REMOVE PUNCTUATION (DATASET CHARS ONLY)
 rm_quotes = False
-rm_punctuation = False
+rm_punctuation = True
 assert not rm_quotes == rm_punctuation == True
 
 if rm_quotes:
@@ -54,14 +54,13 @@ for filename in os.listdir(original_path):
         for verse in text:
 
             # replace characters
-            verse = verse.replace(' ', f' {sep} ')
-            verse = verse.replace('|', ' ')
+            verse = verse.replace('|', sep)
 
             # remove punctuations
             if rm_punctuation:
                 for char in verse:
                     if char in punctuation:
-                        verse = verse.replace(char, '')
+                        verse = verse.replace(char, '')    
             elif rm_quotes:
                 verse = verse.replace('»', '')
                 verse = verse.replace('«', '')
@@ -74,20 +73,20 @@ for filename in os.listdir(original_path):
             verse = verse.replace('  ', ' ')
             verse = verse.replace('\n', '')
 
+            # add final spaces for syllables coherence
+            if verse[-1] not in (punctuation+" "):
+                verse += " "
+
             # add sov and eov tokens to verse
-            verse = sov + verse + ' ' + eov
+            verse = sov + verse + sep + eov
             
             # manage tercets if needed
             if filename in has_tercets:
                 if verse_count == 1:
-                    verse = sot + ' ' + verse
+                    verse = sot + verse
                 elif verse_count == 3:
                     verse_count = 0    
                 verse_count += 1
-
-            # special cases management
-            if '<V> ' not in verse:
-                verse = verse.replace('<V>', '<V> ')
 
             # append verse to tokenized verses list
             tokenized.append(verse)
@@ -96,7 +95,7 @@ for filename in os.listdir(original_path):
         out_name = f'tokenized/tokenized_{filename}'
         if rm_quotes: out_name = out_name.replace('.txt','_quotesless.txt')
         elif rm_punctuation: out_name = out_name.replace('.txt', '_punctuationless.txt')
-        with open(out_name, 'w') as f:
+        with open(out_name.replace(".txt", "_spaces.txt"), 'w') as f:
             for verse in tokenized:
                 # print(verse)
                 f.write(verse+'\n')

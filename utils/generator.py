@@ -12,7 +12,9 @@ _train_step_signature = [
 
 class Generator():
 
-    def __init__(self, vocab_size:int, str2idx, idx2str,
+    def __init__(self, tokens_vocab_size:int, 
+                    str2idx, idx2str, 
+                    words_vocab, alphas_start,
                     encoders:int = 5, decoders:int = 5, heads:int = 4,
                     d_model:int = 256, dff:int = 512, dropout:float = 0.2,
                     epochs_production:int = 0, epochs_comedy:int = 0):
@@ -21,8 +23,12 @@ class Generator():
         self.str2idx = str2idx
         self.idx2str = idx2str
 
+        # useful for loss (?)
+        self.words_vocab = words_vocab
+        self.alphas_start = alphas_start
+
         # initialize transformer model parameters
-        self.vocab_size = vocab_size
+        self.tokens_vocab_size = tokens_vocab_size
         self.encoders = encoders
         self.decoders = decoders
         self.heads = heads
@@ -44,10 +50,10 @@ class Generator():
                                 d_model,
                                 heads,
                                 dff,
-                                input_vocab_size= vocab_size,
-                                target_vocab_size= vocab_size,
-                                pe_input= vocab_size, 
-                                pe_target= vocab_size,
+                                input_vocab_size= tokens_vocab_size,
+                                target_vocab_size= tokens_vocab_size,
+                                pe_input= tokens_vocab_size, 
+                                pe_target= tokens_vocab_size,
                                 rate= dropout)
 
         # optimizer
@@ -68,7 +74,7 @@ class Generator():
             f"- num_heads: {self.heads}",
             f"- d_model: {self.d_model}",
             f"- dff: {self.dff}",
-            f"- vocab_size: {self.vocab_size}",
+            f"- tokens_vocab_size: {self.tokens_vocab_size}",
             f"- dropout: {self.dropout}",
             f"- optimizer: {str(type(self.optimizer))[:-2].split('.')[-1]}",
             f"- loss: {str(type(self.loss_object))[:-2].split('.')[-1]}",
@@ -214,8 +220,8 @@ class Generator():
 
     ############
     # TRAINING #
-    ############
-
+    ############        
+        
     def _loss_function(self, real, pred):
 
         '''model's loss function: given as input the real target
@@ -230,9 +236,16 @@ class Generator():
         mask = tf.cast(mask, dtype=loss_.dtype)
         # apply mask to loss tensor
         loss_ *= mask
+
+        # # syllables mask
+        # sylls_mask = tf.math.greater_equal(pred, self.alphas_start)
+        # hendec_score = abs(11.0 - tf.reduce_sum(tf.cast(sylls_mask, tf.float32))/4)
+        # # sylls_mask *= tf.where(sylls_mask, 1.2, 1.0)
+        # return tf.reduce_sum(loss_)/tf.reduce_sum(mask)*hendec_score
         
         # returns a single float value representing the loss value
         return tf.reduce_sum(loss_)/tf.reduce_sum(mask)
+
 
     @tf.function(input_signature=_train_step_signature)
     def _train_step(self, inp, tar):

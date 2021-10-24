@@ -1,6 +1,7 @@
 # Custom
 weights/
-# results/
+results/
+tokenized/
 temp.py
 
 # extra
