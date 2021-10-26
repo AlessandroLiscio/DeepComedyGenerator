@@ -1,7 +1,10 @@
 # Custom
 weights/
 results/
-tokenized/
+dataloaders/
+
+# Temp Custom
+hyphenator/
 temp.py
 
 # extra

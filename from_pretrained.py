@@ -4,8 +4,6 @@ from utils.generator import Generator
 from utils.dataloader import DataLoader
 # from tokenizer import Tokenizer
 
-#TODO: implement verbosity
-
 ###################
 # PARSE ARGUMENTS #
 ###################
@@ -38,6 +36,8 @@ from utils.dataloader import DataLoader
 # parser.add_argument("--out_path", type=str,
 #                     help="path of the folder containing the output files")
 
+# #TODO: implement verbosity
+# #TODO: fix prints
 # parser.add_argument("-v", "--verbose", action="store_true",
 #                     help="increase output verbosity")
 # args = parser.parse_args()
@@ -62,16 +62,16 @@ from utils.dataloader import DataLoader
 ############################# PATHS #############################
 
 ###### LOCAL #####
-# in_path  = 'data/'
-# out_path  = 'results/'
-# weights_path = 'weights/'
-# dataloaders_path = 'dataloaders/'
+in_path  = 'data/'
+out_path  = 'results/'
+weights_path = 'weights/'
+dataloaders_path = 'dataloaders/'
 
 ##### SLURM #####
-in_path = 'data/'
-out_path  = '../../../../../public/alessandro.liscio/results/'
-weights_path = '../../../../../public/alessandro.liscio/weights/'
-dataloaders_path = '../../../../../public/alessandro.liscio/dataloaders/'
+# in_path = 'data/'
+# out_path  = '../../../../../public/alessandro.liscio/results/'
+# weights_path = '../../../../../public/alessandro.liscio/weights/'
+# dataloaders_path = '../../../../../public/alessandro.liscio/dataloaders/'
 
 ##### DRIVE #####
 # in_path  = '/content/drive/MyDrive/DC-gen/data/'
@@ -89,9 +89,6 @@ for folder in [out_path, weights_path, dataloaders_path]:
 # SETUP #
 #########
 
-comedy_name = 'comedy'
-tokenization = 'spaces'
-
 # model hyperparameters
 # ATTENTION: assert d_model % heads == 0
 encoders = 5
@@ -103,12 +100,12 @@ dropout  = 0.2
 
 # one epoch is all you need: number of repetitions per dataset, instead of epochs
 epochs_production = 0
-epochs_comedy     = 50
+epochs_comedy     = 75
 
 dataloader = DataLoader(sep = '|',
-                        in_path=in_path+"tokenized/",
-                        comedy_name=comedy_name,
-                        tokenization=tokenization,
+                        in_path='data/tokenized/',
+                        comedy_name='comedy_11',
+                        tokenization='punctuationless_spaces',
                         epochs_production=epochs_production,
                         epochs_comedy=epochs_comedy,
                         verbose = True)
@@ -130,6 +127,10 @@ generator = Generator(dataloader = dataloader,
                       dropout = dropout)
 
 print(generator)
+
+# Load weights
+generator.trained_epochs_comedy = 0
+generator.load_model_weights(weights_path)
 
 ############
 # TRAINING #

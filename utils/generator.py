@@ -12,23 +12,17 @@ _train_step_signature = [
 
 class Generator():
 
-    def __init__(self, tokens_vocab_size:int, 
-                    str2idx, idx2str, 
-                    words_vocab, alphas_start,
+    def __init__(self, dataloader,
                     encoders:int = 5, decoders:int = 5, heads:int = 4,
                     d_model:int = 256, dff:int = 512, dropout:float = 0.2,
                     epochs_production:int = 0, epochs_comedy:int = 0):
     
         # initialize mappings
-        self.str2idx = str2idx
-        self.idx2str = idx2str
-
-        # useful for loss (?)
-        self.words_vocab = words_vocab
-        self.alphas_start = alphas_start
+        self.str2idx = dataloader.str2idx
+        self.idx2str = dataloader.idx2str
 
         # initialize transformer model parameters
-        self.tokens_vocab_size = tokens_vocab_size
+        self.tokens_vocab_size = dataloader.vocab_info['size']
         self.encoders = encoders
         self.decoders = decoders
         self.heads = heads
@@ -37,12 +31,18 @@ class Generator():
         self.dropout = dropout
 
         # initialize training epochs
-        self.epochs_production = epochs_production
-        self.epochs_comedy = epochs_comedy
+        self.epochs_production = dataloader.epochs_production
+        self.epochs_comedy = dataloader.epochs_comedy
 
         # initialize trained epochs
         self.trained_epochs_production = 0
         self.trained_epochs_comedy = 0
+
+        # datasets info
+        self.sep = dataloader.sep
+        self.tercet_max_len = dataloader.tercet_max_len
+        self.original_length_production = dataloader.original_length_production
+        self.original_length_comedy = dataloader.original_length_comedy
 
         # transformer model instantiation
         self.model = Transformer(encoders,
@@ -50,10 +50,10 @@ class Generator():
                                 d_model,
                                 heads,
                                 dff,
-                                input_vocab_size= tokens_vocab_size,
-                                target_vocab_size= tokens_vocab_size,
-                                pe_input= tokens_vocab_size, 
-                                pe_target= tokens_vocab_size,
+                                input_vocab_size=self.tokens_vocab_size,
+                                target_vocab_size= self.tokens_vocab_size,
+                                pe_input= self.tokens_vocab_size, 
+                                pe_target= self.tokens_vocab_size,
                                 rate= dropout)
 
         # optimizer
@@ -68,21 +68,21 @@ class Generator():
     def __str__(self):
         return "\n".join((
             "",
-            "Generator parameters:",
-            f"- encoders: {self.encoders}",
-            f"- decoders: {self.decoders}",
-            f"- num_heads: {self.heads}",
-            f"- d_model: {self.d_model}",
-            f"- dff: {self.dff}",
-            f"- tokens_vocab_size: {self.tokens_vocab_size}",
-            f"- dropout: {self.dropout}",
-            f"- optimizer: {str(type(self.optimizer))[:-2].split('.')[-1]}",
-            f"- loss: {str(type(self.loss_object))[:-2].split('.')[-1]}",
-            f"- metric: {str(type(self.train_accuracy))[:-2].split('.')[-1]}",
-            f"- epochs_production: {self.epochs_production}",
-            f"- epochs_comedy: {self.epochs_comedy}",
-            f"- trained_epochs_production: {self.trained_epochs_production}",
-            f"- trained_epochs_comedy: {self.trained_epochs_comedy}",
+            ">> GENERATOR:",
+            f"> encoders: {self.encoders}",
+            f"> decoders: {self.decoders}",
+            f"> num_heads: {self.heads}",
+            f"> d_model: {self.d_model}",
+            f"> dff: {self.dff}",
+            f"> tokens_vocab_size: {self.tokens_vocab_size}",
+            f"> dropout: {self.dropout}",
+            f"> optimizer: {str(type(self.optimizer))[:-2].split('.')[-1]}",
+            f"> loss: {str(type(self.loss_object))[:-2].split('.')[-1]}",
+            f"> metric: {str(type(self.train_accuracy))[:-2].split('.')[-1]}",
+            f"> epochs_production: {self.epochs_production}",
+            f"> epochs_comedy: {self.epochs_comedy}",
+            f"> trained_epochs_production: {self.trained_epochs_production}",
+            f"> trained_epochs_comedy: {self.trained_epochs_comedy}",
             ""
         ))
 
@@ -140,8 +140,8 @@ class Generator():
 
         # drop the first verse to keep a window of 3 verses
         def drop_first_verse(sequence):
-            for i, element in enumerate(sequence):
-                if element == eov:
+            for i, token in enumerate(sequence):
+                if token == eov:
                     return sequence[i+1:]
 
         # variables initialization
@@ -161,7 +161,7 @@ class Generator():
             # generate one verse
             generated_verse, _ = self._generate_verse(input_list,
                                                     eov = eov,
-                                                    max_len = max_len,
+                                                    max_len = int(max_len/3),
                                                     temperature=temperature)
 
             # append the generated verse to the input sequence
@@ -175,18 +175,18 @@ class Generator():
         
         return generated
 
-    def generate_from_tercet(self, tercet, temperatures, max_len:int, n_verses:int=100):
+    def generate_from_tercet(self, tercet, temperatures, n_verses:int=100):
 
         '''generates 'n_verses' for each temperature, starting from
-        input tercet, where every verse has at most 'max_len' tokens'''
+        input tercet, where every verse has at most 'tercet_max_len' tokens'''
 
         # prepare input tercet in order to feed it to the model
         start = list(tf.keras.preprocessing.sequence.pad_sequences(
             [flatten(
                 encode_tokens(
-                    split_tokens(tercet),
+                    split_tokens(tercet, self.sep),
                     self.str2idx))],
-            maxlen = max_len)[0])
+            maxlen = self.tercet_max_len)[0])
 
         print("Start:\n", np.array(tercet))        
         print("\nGenerating new cantica: ")
@@ -202,7 +202,7 @@ class Generator():
 
             # generate cantica
             generated_string = self._generate(start = start,
-                                                max_len = max_len,
+                                                max_len = self.tercet_max_len,
                                                 n_verses = n_verses,
                                                 temperature = temp)
 
@@ -286,8 +286,8 @@ class Generator():
         self.train_accuracy(tar_real, predictions)
 
     
-    def train_model(self, dataset, dataset_name, original_length:int,
-                    weights_path:str = "weights/", save_checkpoints:bool = False):
+    def train_model(self, dataset, dataset_name,
+                    weights_path:str = "weights/", checkpoint:int = None):
 
         '''train model on target dataset. As the dataset has been
         repeated several times (each time singularly shuffled)
@@ -309,7 +309,12 @@ class Generator():
         accuracy_history = []
             
         # compute original dataset size
-        epochs = int(len(dataset)/original_length)
+        if dataset_name == 'comedy':
+            epochs = self.epochs_comedy
+            original_length = self.original_length_comedy
+        else:
+            epochs = self.epochs_production
+            original_length = self.original_length_production
 
         for (batch, (inp, tar)) in enumerate(dataset):
                 
@@ -345,8 +350,8 @@ class Generator():
                     self.trained_epochs_production += 1
 
             # save model weights every 10 epochs
-            if save_checkpoints:
-                if batch != 0 and batch % original_length*10 == 0:
+            if checkpoint:
+                if batch != 0 and batch % (original_length*checkpoint) == 0:
                     self.save_model_weights(weights_path)
         
         # append last values to histories
@@ -421,12 +426,13 @@ class Generator():
             # load model's checkpoint
             if os.path.isdir(ckpt_path):
                 self.model.load_weights(ckpt_path+model_name)
+                print("Loaded weights from checkpoint ", ckpt_path+model_name)
             else:
                 print("".join((
-                    "weights not found for ",
+                    ">> Weights not found for ",
                     f"trained_epochs_production = {self.trained_epochs_production} and ",
                     f"trained_epochs_comedy = {self.trained_epochs_comedy}.",
-                    "Loading weights from checkpoint with highest number of trained epochs."
+                    "\nLoading weights from checkpoint with highest number of trained epochs."
                 )))
 
                 # find model's checkpoint with the most trained epochs
@@ -443,6 +449,6 @@ class Generator():
 
                 # load weights
                 self.model.load_weights(ckpt_path+model_name)
-                print("Loaded weights from " + ckpt_path)
+                print(">> Loaded weights from " + ckpt_path)
         except:
             print(f"ERROR: problem loading weights from {w_path}")
