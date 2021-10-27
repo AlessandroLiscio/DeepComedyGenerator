@@ -1,0 +1,1 @@
+{"max_len": 57, "embedding_dim": 256, "filters": 250, "kernel_size_1": 9, "kernel_size_2": 6, "hidden_dims": 250, "loss": "sparse_categorical_crossentropy", "optimizer": "adam", "metrics": ["accuracy"], "epochs": 6}
