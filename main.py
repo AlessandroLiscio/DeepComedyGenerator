@@ -1,10 +1,8 @@
-from utils.preprocessing import *
-from utils.results import *
-from utils.generator import Generator
-from utils.dataloader import DataLoader
-# from tokenizer import Tokenizer
+from src.dataprocessing import *
+from src.generator import Generator
+from src.dataloader import DataLoader
 
-#TODO: implement verbosity
+#TODO: implement parse arguments
 
 ###################
 # PARSE ARGUMENTS #
@@ -57,40 +55,16 @@ from utils.dataloader import DataLoader
 
 # # one epoch is all you need: number of repetitions per dataset, instead of epochs
 # if not args.epochs_production: epochs_production = 0
-# if not args.epochs_comedy:     epochs_comedy     = 70
+# if not args.epochs_comedy:     epochs_comedy     = 50
 
-############################# PATHS #############################
+############################# SETUP #############################
 
-###### LOCAL #####
-# in_path  = 'data/'
-# out_path  = 'results/'
-# weights_path = 'weights/'
-# dataloaders_path = 'dataloaders/'
-
-##### SLURM #####
-in_path = 'data/'
-out_path  = '../../../../../public/alessandro.liscio/results/'
-weights_path = '../../../../../public/alessandro.liscio/weights/'
-dataloaders_path = '../../../../../public/alessandro.liscio/dataloaders/'
-
-##### DRIVE #####
-# in_path  = '/content/drive/MyDrive/DC-gen/data/'
-# out_path  = '/content/drive/MyDrive/DC-gen/results/'
-# weights_path = '/content/drive/MyDrive/DC-gen/weights/'
-# dataloaders_path = '/content/drive/MyDrive/DC-gen/dataloaders/'
-
-# Crete output folders
-for folder in [out_path, weights_path, dataloaders_path]:
-  create_folder(folder)
-
-#################################################################
-
-#########
-# SETUP #
-#########
-
-comedy_name = 'comedy'
-tokenization = 'spaces'
+comedy_name = 'comedy_np_es_is'
+tokenization = 'spaces'       # ['base', 'spaces']
+epochs_production = 0
+epochs_comedy = 50
+checkpoint = 10               # [int, None]
+verbose = True
 
 # model hyperparameters
 # ATTENTION: assert d_model % heads == 0
@@ -101,25 +75,41 @@ d_model  = 256
 dff      = 512
 dropout  = 0.2
 
-# one epoch is all you need: number of repetitions per dataset, instead of epochs
-epochs_production = 0
-epochs_comedy     = 50
+###### LOCAL #####
+# in_path  = 'data/tokenized/'
+# out_path  = 'results/'
 
-dataloader = DataLoader(sep = '|',
-                        in_path=in_path+"tokenized/",
+##### SLURM #####
+# in_path = 'data/tokenized/'
+# out_path  = '../../../../../public/alessandro.liscio/results/'
+
+##### DRIVE #####
+in_path  = '/content/drive/MyDrive/DC-gen/data/tokenized/'
+out_path  = '/content/drive/MyDrive/DC-gen/results/'
+
+weights_path = out_path + 'weights/'
+generations_path = out_path + 'generations/'
+dataloaders_path = out_path + 'dataloaders/'
+
+# Create output folders
+for folder in [out_path, weights_path, generations_path, dataloaders_path]:
+  if not os.path.exists(folder):
+      os.mkdir(folder)
+      print("CREATED: ", folder)
+
+######################### DATALOADER #############################
+
+dataloader = DataLoader(in_path=in_path,
                         comedy_name=comedy_name,
                         tokenization=tokenization,
-                        epochs_production=epochs_production,
-                        epochs_comedy=epochs_comedy,
-                        verbose = True)
-
-dataloader.save(dataloaders_path)
+                        repetitions_production=epochs_production,
+                        repetitions_comedy=epochs_comedy,
+                        verbose = verbose)
 
 # dataloader.print_comedy_samples(1)
+dataloader.save(dataloaders_path)
 
-#############
-# GENERATOR #
-#############
+######################### GENERATOR #############################
 
 generator = Generator(dataloader = dataloader,
                       encoders = encoders, 
@@ -127,93 +117,29 @@ generator = Generator(dataloader = dataloader,
                       d_model = d_model,
                       dff = dff,
                       heads = heads,
-                      dropout = dropout)
+                      dropout = dropout,
+                      verbose = verbose)
 
-print(generator)
-
-############
-# TRAINING #
-############
-
-# If not None, model weights are saved every 'ckpt' epochs
-ckpt = 25
-
-# Train on Dante's production
-if epochs_production > 0:
-  t_production, loss_hist_production, acc_hist_production = generator.train_model(
-    dataloader.datasets['production'], "production", weights_path, ckpt)
-else:
-  t_production = 0
-  loss_hist_production = ["0"]
-  acc_hist_production = ["0"]
-
-# Train on divine comedy
-if epochs_comedy > 0:
-  t_comedy, loss_hist_comedy, acc_hist_comedy = generator.train_model(
-    dataloader.datasets['comedy'], "comedy", weights_path, ckpt)
-else:
-  t_comedy = 0
-  loss_hist_comedy = ["0"]
-  acc_hist_comedy = ["0"]
-
-# Save weights
-generator.save_model_weights(weights_path)
-
-##############
-# GENERATION #
-##############
+# Train model on datasets
+generator.train_model(checkpoint = checkpoint,
+                      out_path = out_path)
 
 # Choose starting tercet
-dc_start = open(in_path+f'tokenized_{comedy_name}_{tokenization}.txt', 'r').read().lower().splitlines()[:3]
+start = dataloader.get_comedy_start()
 
 # Choose the list of temperatures (one generation for each temperature)
 temperatures = np.round(np.linspace(0.5, 1.5, num=11), 1)
 
 # Generate one cantica (100 verses) for each temperature, starting from input tercet
-generations = generator.generate_from_tercet(dc_start, temperatures, 100)
+log = generator.generate_from_tercet(start, temperatures, 100)
 
-###########
-# RESULTS #
-###########
-
-# Create the log dictionary
-log = {
-  "model": {
-    "encoders": generator.encoders,
-    "decoders": generator.decoders,
-    "heads": generator.heads,
-    "d_model": generator.d_model,
-    "dff": generator.dff
-    },
-  "trainings": {
-    "production": {
-      "epochs": epochs_production,
-      "time": t_production,
-      "loss_history": loss_hist_production,
-      "acc_history": acc_hist_production
-    },
-    "comedy": {
-      "epochs": epochs_comedy,
-      "time": t_comedy,
-      "loss_history": loss_hist_comedy,
-      "acc_history": acc_hist_comedy
-    }
-  },
-  "generations": {}
-}
-
-# Load generations to dictionary
-for i, temp in enumerate(temperatures):
-  log["generations"]["temp_"+str(temp)] = generations[i]
-
-# Save results to out_path
-save_results(log, out_path)
+######################### RESULTS #############################
 
 # Print training information
-show_train_info(log)
+generator.show_train_info()
 
-# Plot loss and accuracy histories
-plot_hist(log, out_path)
-
-# Print generations in tabular form and save to file
-tabular_generations(log, out_path)
+# Save results to out_path
+generator.save_log(out_path, verbose)
+generator.save_generations(out_path, verbose)
+generator.plot_hist('comedy', out_path, verbose)
+generator.tabular_generations(out_path, verbose)
