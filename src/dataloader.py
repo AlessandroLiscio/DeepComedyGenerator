@@ -1,5 +1,9 @@
-from src.dataprocessing import *
+from src.tokensprocessing import *
 import pickle
+
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import tensorflow as tf
 
 class DataLoader():
 
@@ -69,7 +73,7 @@ class DataLoader():
         ))
 
     ############################################################################
-    ######################    VOCABULARY AND DATASETS        ###################
+    #####################          VOCABULARY          #########################
     ############################################################################
 
     def _init_train_order(self):
@@ -118,7 +122,7 @@ class DataLoader():
         #############################
 
         syllables = sorted(
-            set().union(*[verses_to_syllables_set(self.files_dict[file_name], self.separator) for file_name in self.train_order]),
+            set().union(*[self._verses_to_syllables_set(self.files_dict[file_name]) for file_name in self.train_order]),
             key=len)
 
         # initialize groups
@@ -169,6 +173,24 @@ class DataLoader():
         self.str2idx = {u:i for i, u in enumerate(self.vocab)}
         self.idx2str = np.array(self.vocab)
 
+    # Returns set of syllales from input list of verses
+    def _verses_to_syllables_set(self, verses_list, verbose:bool=True):
+    
+        syllables = split_tokens(verses_list, self.separator)
+        syllables = flatten(syllables)
+        syllables = sorted(set(syllables), key=len)
+
+        if verbose:
+            print(syllables)
+            print("syllables set: ", len(syllables))
+
+        return syllables
+
+
+    ############################################################################
+    #######################         DATASETS          ##########################
+    ############################################################################
+
     def _init_datasets(self):
 
         '''creates the dataset to be fed to the generator'''
@@ -185,25 +207,79 @@ class DataLoader():
                         dataset.append(self.files_dict[filename])
 
                 # Split input target for Dante' Production dataset
-                dataset, self.original_length_production = split_input_target_production(
-                    dataset, 
-                    self.str2idx, 
-                    sep = self.separator,
+                dataset, self.original_length_production, _ = self._split_input_target(
+                    dataset_name = key,
+                    dataset = dataset, 
                     inp_len = 3, tar_len = 3,
                     repetitions = self.repetitions_production)
 
             ## Comedy dataset
             elif key == "comedy" and self.repetitions_comedy > 0:
 
+                dataset = self.files_dict[self._get_tokenized_filename(self.comedy_name)]
+
                 # Split input target for Divine Comedy dataset
-                dataset, self.tercet_max_len, self.original_length_comedy = split_input_target_comedy(
-                    self.files_dict[self._get_tokenized_filename(self.comedy_name)],
-                    self.str2idx,
-                    sep = self.separator,
+                dataset, self.original_length_comedy, self.tercet_max_len = self._split_input_target(
+                    dataset_name = key
+                    dataset = dataset,
                     inp_len = 3, tar_len = 4,
                     repetitions = self.repetitions_comedy)
 
             self.datasets[key] = dataset
+
+
+    def _split_input_target(self, dataset_name:str, dataset, 
+                            inp_len:int=3, tar_len:int=4, skip:int=1, 
+                            batch_size:int=64, repetitions:int=100):
+
+        '''splits dataset in input-target couples'''
+
+        inputs = []
+        targets = []
+
+        # Concatenate the text lists in production
+        if dataset_name == 'production':
+            dataset = flatten(dataset)
+        
+        # Prepare data for model (list of integers)
+        dataset = split_tokens(dataset, self.separator)
+        dataset = encode_tokens(dataset, self.str2idx)
+        
+        # Split input-target
+        for i in range(0, len(dataset)-tar_len, skip):
+            inputs.append(flatten(dataset[i:i+inp_len]))
+            targets.append(flatten(dataset[i:i+tar_len]))
+            
+        # Create repeated, shuffled and prefetched dataset
+        real_size, dataset = self._create_dataset(inputs, targets, batch_size, repetitions)
+        
+        # Real dataset size (not repeated)
+        real_size_batched = int(real_size/batch_size)
+
+        # Max length of verses
+        max_len = max(len(x) for x in inputs)
+
+        return dataset, real_size_batched, max_len
+
+
+    def _create_dataset(self, inputs, targets, batch_size:int = 64, repetitions:int = 100):
+
+        '''creates cached and prefetched datasets from 'inputs' and 'targets' lists'''
+
+        # Create dataset from inputs and targets
+        dataset = tf.data.Dataset.from_tensor_slices((
+            tf.keras.preprocessing.sequence.pad_sequences(inputs), 
+            tf.keras.preprocessing.sequence.pad_sequences(targets)))
+        # cache the dataset to memory to get a speedup while reading from it.
+        dataset = dataset.cache()
+        # create batched dataset and shuffle it
+        buffer_size = len(dataset)
+        dataset = dataset.shuffle(buffer_size, reshuffle_each_iteration=True
+                    ).repeat(repetitions).padded_batch(batch_size, drop_remainder=True)
+        # This allows later elements to be prepared while the current is being processed.
+        dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
+        return buffer_size, dataset
+
 
     ############################################################################
     #####################       SAVE AND LOAD           ########################
@@ -249,7 +325,7 @@ class DataLoader():
         self._init_datasets(verbose)
 
     ############################################################################
-    ##########################       PRINTS           ##########################
+    ##########################          UTILS         ##########################
     ############################################################################
 
     def print_vocab_info(self):

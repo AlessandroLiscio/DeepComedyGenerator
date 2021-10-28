@@ -1,6 +1,6 @@
-from src.dataprocessing import *
 from src.generator import Generator
 from src.dataloader import DataLoader
+import os
 
 #TODO: implement parse arguments
 
@@ -76,16 +76,16 @@ dff      = 512
 dropout  = 0.2
 
 ###### LOCAL #####
-# in_path  = 'data/tokenized/'
-# out_path  = 'results/'
+in_path  = 'data/tokenized/'
+out_path  = 'results/'
 
 ##### SLURM #####
 # in_path = 'data/tokenized/'
 # out_path  = '../../../../../public/alessandro.liscio/results/'
 
 ##### DRIVE #####
-in_path  = '/content/drive/MyDrive/DC-gen/data/tokenized/'
-out_path  = '/content/drive/MyDrive/DC-gen/results/'
+# in_path  = '/content/drive/MyDrive/DC-gen/data/tokenized/'
+# out_path  = '/content/drive/MyDrive/DC-gen/results/'
 
 weights_path = out_path + 'weights/'
 generations_path = out_path + 'generations/'

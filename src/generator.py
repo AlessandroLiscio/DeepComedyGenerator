@@ -2,7 +2,7 @@
 import time
 import tensorflow as tf
 from src.transformer import Transformer, create_masks
-from src.dataprocessing import *
+from src.tokensprocessing import *
 
 # Results imports
 import os
