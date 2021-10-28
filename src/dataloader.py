@@ -1,9 +1,7 @@
-from src.tokensprocessing import *
 import pickle
-
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
+from src.tokensprocessing import *
 
 class DataLoader():
 
@@ -16,9 +14,9 @@ class DataLoader():
                 from_pickle:str = None,
                 verbose:str = True):
 
-        # initialize dataloader identifiers
         self.comedy_name = comedy_name
         self.tokenization = tokenization
+        self.datasets = {'production': None, 'comedy': None}
 
         if from_pickle:
             self.load(from_pickle, verbose)
@@ -27,7 +25,6 @@ class DataLoader():
             # Initialize data
             self.vocab = []
             self.files_dict = {}
-            self.datasets = {'production': None, 'comedy': None}
             
             # initialize datasets parameters
             self.repetitions_production = repetitions_production
@@ -174,7 +171,7 @@ class DataLoader():
         self.idx2str = np.array(self.vocab)
 
     # Returns set of syllales from input list of verses
-    def _verses_to_syllables_set(self, verses_list, verbose:bool=True):
+    def _verses_to_syllables_set(self, verses_list, verbose:bool=False):
     
         syllables = split_tokens(verses_list, self.separator)
         syllables = flatten(syllables)
@@ -220,7 +217,7 @@ class DataLoader():
 
                 # Split input target for Divine Comedy dataset
                 dataset, self.original_length_comedy, self.tercet_max_len = self._split_input_target(
-                    dataset_name = key
+                    dataset_name = key,
                     dataset = dataset,
                     inp_len = 3, tar_len = 4,
                     repetitions = self.repetitions_comedy)
@@ -290,12 +287,9 @@ class DataLoader():
         '''saves the dataloader's attributes to a pickle file'''
 
         if path.endswith('/'):
-            filename = path+f'dataloader_{self.comedy_name}.pkl'
+            filename = path+f'dataloader_{self.comedy_name}_{self.tokenization}.pkl'
         else:
-            filename = path+f'/dataloader_{self.comedy_name}.pkl'
-
-        if self.tokenization:
-            filename = filename.replace(".pkl", f"_{self.tokenization}.pkl")
+            filename = path+f'/dataloader_{self.comedy_name}_{self.tokenization}.pkl'
 
         temp = self.datasets.copy()
         self.datasets = None
@@ -309,12 +303,9 @@ class DataLoader():
         '''initializes the dataloader's attributes from existing pickle file'''
 
         if path.endswith('/'):
-            filename = path+f'dataloader_{self.comedy_name}.pkl'
+            filename = path+f'dataloader_{self.comedy_name}_{self.tokenization}.pkl'
         else:
-            filename = path+f'/dataloader_{self.comedy_name}.pkl'
-
-        if self.tokenization:
-            filename = filename.replace(".pkl", f"_{self.tokenization}.pkl")
+            filename = path+f'/dataloader_{self.comedy_name}_{self.tokenization}.pkl'
 
         with open(filename, 'rb') as f:
             temp = pickle.load(f)
@@ -322,7 +313,7 @@ class DataLoader():
                 self.__dict__[attr] = value
 
         if verbose: print(">> Dataloader loaded from:", filename)
-        self._init_datasets(verbose)
+        self._init_datasets()
 
     ############################################################################
     ##########################          UTILS         ##########################
@@ -362,10 +353,7 @@ class DataLoader():
 
         '''returns tokenized version of filename'''
 
-        if self.tokenization == 'base':
-            filename = f"tokenized_{filename}"
-        else:
-            filename = f"tokenized_{filename}_{self.tokenization}"
+        filename = f"tokenized_{filename}_{self.tokenization}"
         if not ".txt" in filename:
             filename = filename+".txt"
         return filename

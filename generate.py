@@ -22,7 +22,7 @@ if parser.tokenization: tokenization = parser.tokenization
 
 ## PATHS
 in_path  = parser.in_path
-out_path = parser.out_path
+out_path = parsers.out_path
 
 ## MODEL PARAMETERS
 encoders = parser.encoders
@@ -51,19 +51,11 @@ for folder in [out_path, dataloaders_path]:
       os.mkdir(out_path)
       print("CREATED: ", folder)
 
-########################### DATALOADER ###########################
+######################### LOAD PRETRAINED ###########################
 
-dataloader = DataLoader(in_path=in_path,
-                        comedy_name=comedy_name,
-                        tokenization=tokenization,
-                        repetitions_production=epochs_production,
-                        repetitions_comedy=epochs_comedy,
-                        verbose = verbose)
-
-# dataloader.print_comedy_samples(1)
-dataloader.save(dataloaders_path)
-
-############################ GENERATOR ############################
+dataloader = DataLoader(from_pickle = dataloaders_path,
+                        comedy_name = comedy_name,
+                        tokenization = tokenization)
 
 generator = Generator(dataloader = dataloader,
                       encoders = encoders, 
@@ -73,13 +65,6 @@ generator = Generator(dataloader = dataloader,
                       heads = heads,
                       dropout = dropout,
                       verbose = verbose)
-
-# Train model on datasets
-generator.train_model(checkpoint = checkpoint,
-                      out_path = out_path)
-
-# Print training information
-# generator.print_training_info()
 
 ########################### GENERATIONS ###########################
 

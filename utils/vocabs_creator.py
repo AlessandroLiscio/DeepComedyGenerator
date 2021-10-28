@@ -1,5 +1,6 @@
 import sys
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.dataloader import DataLoader
@@ -18,26 +19,24 @@ if not os.path.exists(out_path):
     os.mkdir(out_path)
     print("CREATED: ", out_path)
 
+print("GENERATING VOCABULARIES:")
 for tokenization in ['base', 'spaces']:
   for comedy_name in os.listdir(originals_path):
+    if not ("_is_" in comedy_name and tokenization == 'base'):
 
-    comedy_name = comedy_name.replace(".txt","")
-    print(f"Generating vocabulary for {comedy_name}_{tokenization}")
+      comedy_name = comedy_name.replace(".txt","")
 
-    dataloader = DataLoader(in_path=in_path,
-                            comedy_name=comedy_name,
-                            tokenization=tokenization,
-                            repetitions_production=epochs_production,
-                            repetitions_comedy=epochs_comedy,
-                            verbose = verbose)
+      dataloader = DataLoader(in_path=in_path,
+                              comedy_name=comedy_name,
+                              tokenization=tokenization,
+                              repetitions_production=epochs_production,
+                              repetitions_comedy=epochs_comedy,
+                              verbose = verbose)
 
-    out_dict = dict(enumerate(dataloader.vocab))
-    if log:
-      out_dict['log'] = dataloader.vocab_info
-    
-    print("Vocab info:", dataloader.vocab_info)
-    
-    if not tokenization:
-      json.dump(out_dict, open(f'{out_path}vocab_{comedy_name}.json', 'w'))
-    else:
+      out_dict = dict(enumerate(dataloader.vocab))
+      if log:
+        out_dict['log'] = dataloader.vocab_info
+      
+      print(" - {:<30}{}".format(f"{comedy_name}_{tokenization}:", dataloader.vocab_info))
+
       json.dump(out_dict, open(f'{out_path}vocab_{comedy_name}_{tokenization}.json', 'w'))

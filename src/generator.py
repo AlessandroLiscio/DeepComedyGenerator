@@ -1,6 +1,7 @@
 # Generator imports
 import time
 import tensorflow as tf
+import numpy as np
 from src.transformer import Transformer, create_masks
 from src.tokensprocessing import *
 
@@ -146,7 +147,7 @@ class Generator():
     def train_on_dataset(self,
                         dataset,
                         dataset_name,
-                        weights_path:str = None,
+                        out_path:str = None,
                         checkpoint:int = None):
 
         '''train model on target dataset. As the dataset has been
@@ -209,11 +210,16 @@ class Generator():
                 else:
                     self.trained_epochs_production += 1
 
-            # save model weights every 10 epochs
-            if checkpoint and weights_path:
+            # save model weights, log and history plots every "checkpoint" epochs
+            if checkpoint and out_path:
                 if batch != 0 and batch % (original_length*checkpoint) == 0:
-                    self.save_model_weights(weights_path)
-        
+                    self.save_model_weights(out_path, verbose=False)
+                    self.save_log(out_path, verbose=False)
+                    if dataset_name == "production":
+                        self.plot_history('production', out_path, verbose=False)
+                    elif dataset_name == "comedy":
+                        self.plot_history('comedy', out_path, verbose=False)
+
         # append last values to histories
         loss_history.append('{:.4f}'.format(self.train_loss.result()))
         accuracy_history.append('{:.4f}'.format(self.train_accuracy.result()))
@@ -222,16 +228,19 @@ class Generator():
         t = round(time.time() - start)
         print(f'\n\tTraining completed in {int(t/3600)}h {int(t/60%60)}m {int(t%60)}s.\n')
 
-        # save model weights
-        if weights_path:
-            self.save_model_weights(weights_path)
+        # save model weights, log and history plots
+        if out_path:
+            self.save_model_weights(out_path, verbose=False)
+            self.save_log(out_path, verbose=False)
+            if dataset_name == "production":
+                self.plot_history('production', out_path, verbose=False)
+            elif dataset_name == "comedy":
+                self.plot_history('comedy', out_path, verbose=False)
         
         return (t, loss_history, accuracy_history)
 
     def train_model(self, checkpoint:int = None, out_path:str = None):
         
-        out_path += "weights/"
-
         for key, dataset in self.dataloader.datasets.items():
 
             # train model on single dataset
@@ -249,76 +258,40 @@ class Generator():
     ################       SAVE AND LOAD WEIGHTS           #####################
     ############################################################################   
 
-    def save_model_weights(self, path:str):
+    def save_model_weights(self, path:str, verbose:bool=True):
 
         '''saves the weights of the model to target path. The name
         of the file is based on the instantiated model's parameters'''
 
-        # get model name for the file name
+        # create model's folder 
         model_name = self.get_model_name()
-
-        # create weights folder if it doesn't exist
-        create_folder(path)
-
-        # create model's weights folder 
         w_path = path + model_name + "/"
         create_folder(w_path)
 
-        # create model's weight checkpoint folder
+        # create checkpoint folder
         w_path += f"{self.trained_epochs_production}_{self.trained_epochs_comedy}/"
         create_folder(w_path)
 
-        # save weights
-        try:
-            w_path = w_path+model_name
-            self.model.save_weights(w_path)
-        except:
-            print(f"ERROR: problem saving weights to {w_path}")
+        # create weights folder
+        w_path += "weights/"
+        create_folder(w_path)
 
-    def load_model_weights(self, path:str):
+        # save weights
+        self.model.save_weights(w_path)
+        w_path = w_path.replace("weights/", "")
+        if verbose: print("\n> Saved weights to checkpoint", w_path)
+
+    def load_model_weights(self, path:str, verbose:bool=True):
 
         '''loads the weights of the model from input path, based on the
         instantiated model's parameters'''
 
         # get model name for the file name
-        model_name = self.get_model_name()
+        w_path = self.get_model_folder(path)+"weights/"
 
-        # load the right checkpoint, based on generator 'trained_epochs' parameters.
-        # If not found, the weights will be loaded from the checkpoint with the
-        # highest number of trained epochs 
-        w_path = f"{path}{model_name}/"
-        ckpt_path = w_path + f"{self.trained_epochs_production}_{self.trained_epochs_comedy}/"
-
-        try:
-            # load model's checkpoint
-            if os.path.isdir(ckpt_path):
-                self.model.load_weights(ckpt_path+model_name)
-                print("Loaded weights from checkpoint ", ckpt_path+model_name)
-            else:
-                print("".join((
-                    "\n>> Weights not found for ",
-                    f"trained_epochs_production = {self.trained_epochs_production} and ",
-                    f"trained_epochs_comedy = {self.trained_epochs_comedy}.",
-                    "\n>> Loading weights from checkpoint with highest number of trained epochs.\n"
-                )))
-
-                # find model's checkpoint with the most trained epochs
-                max_epochs = 0
-                for entry in os.scandir(w_path):
-                    if entry.is_dir():
-                        ckpt = entry.path.split("/")[-1]
-                        epochs_total = 0
-                        for epochs in ckpt.split("_"):
-                            epochs_total += int(epochs)
-                        if epochs_total > max_epochs:
-                            max_epochs = epochs_total
-                            ckpt_path = entry.path + "/"
-
-                # load weights
-                self.model.load_weights(ckpt_path+model_name)
-                print(">> Loaded weights from " + ckpt_path)
-        except:
-            print(f"ERROR: problem loading weights from {w_path}")
+        self.model.load_weights(w_path)
+        w_path = w_path.replace("weights/", "")
+        if verbose: print("\n> Loaded weights from checkpoint", w_path)
 
 
     ############################################################################
@@ -426,7 +399,7 @@ class Generator():
                     self.dataloader.str2idx))],
             maxlen = self.dataloader.tercet_max_len)[0])
 
-        print("\nStart:\n", np.array(tercet))        
+        # print("\nStart:\n", np.array(tercet))        
         print("\nGenerating new cantica: ")
 
         # generate a cantica for each temperature
@@ -511,9 +484,6 @@ class Generator():
         }
 
     def get_model_name(self):
-
-        '''stringify the model description for the file name'''
-
         return "_".join((
             f"{self.dataloader.comedy_name}",
             f"{self.dataloader.tokenization}",
@@ -521,21 +491,25 @@ class Generator():
             f"{self.model.num_layers_decoder}",
             f"{self.model.num_heads}",
             f"{self.model.d_model}",
-            f"{self.model.dff}",
-            f"{self.dataloader.repetitions_production}",
-            f"{self.dataloader.repetitions_comedy}"
+            f"{self.model.dff}"
         ))
+
+    def get_checkpoint_name(self):
+        return f"{self.trained_epochs_production}_{self.trained_epochs_comedy}"
+
+    def get_model_folder(self, out_path:str):
+        return f"{out_path}{self.get_model_name()}/{self.get_checkpoint_name()}/"
 
     ############################################################################
     #################               RESULTS                #####################
     ############################################################################
 
 
-    def show_train_info(self):
+    def print_training_info(self):
 
         '''print training information'''
 
-        print('\nTRAINING INFO:')
+        print('\n>> TRAINING INFO:')
         for training in self.log['trainings']:
             print(f" -- {training}")
             for info in self.log['trainings'][training]:
@@ -548,11 +522,11 @@ class Generator():
                 else:
                     print(f"   -- {info}: {self.log['trainings'][training][info]}")
                     
-    def plot_hist(self, dataset_name:str='comedy', out_path:str=None, verbose:str=True):
+    def plot_history(self, dataset_name:str='comedy', out_path:str=None, verbose:str=True):
 
-        '''plot loss and accuracy histories and save figure
-        in 'out_path' folder as 'history.png' file if 'out_path'
-        is defined.'''
+        '''plot loss and accuracy histories. If 'out_path' is not None
+        the figure is saved in 'out_path'. If 'verbose' is True the
+        plot is shown.'''
 
         fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2, figsize=(30, 10))
 
@@ -581,13 +555,13 @@ class Generator():
 
         # save plot as .png and show it
         if out_path:
-            plt.savefig(out_path+f"{dataset_name}_history.png")
+            plt.savefig(self.get_model_folder(out_path)+f"{dataset_name}_history.png")
         
         # if verbose, display plot
         if verbose:
             plt.show()
 
-    def tabular_generations(self, out_path:str=None, verbose:bool=True):
+    def generations_table(self, out_path:str=None, verbose:bool=True):
 
         '''print generations in tabular form'''
 
@@ -634,7 +608,7 @@ class Generator():
 
         # save table to file
         if out_path:
-            with open(out_path+"generations_table.txt", "w+") as f:
+            with open(self.get_model_folder(out_path)+"generations_table.txt", "w+") as f:
                 f.write(head_line)
                 for row in rows:
                     f.write(row+'\n')
@@ -643,27 +617,19 @@ class Generator():
 
         '''save log dictionary as .json'''
 
-        # stringify the model description for the file name
-        model_name = self.get_model_name()
-
-        # Save the log file 
-        filename = f"{out_path}LOG_{model_name}.json"
-        with open(filename, 'w+') as f:
+        # Save the log file
+        out_path = self.get_model_folder(out_path)+"log.json"
+        with open(out_path, 'w+') as f:
             json.dump(self.log, f, indent=4)
-            if verbose: print(f"log saved as {filename}")
+            if verbose: print(f"\n> Log saved in {out_path}")
 
     def save_generations(self, out_path:str, verbose:bool=True):
 
         '''save log dictionary as .json file and generations
         texts as .txt files in 'out_path' folder'''
 
-        # stringify the model description for the file name
-        model_name = self.get_model_name()
-
         # create generations folder if it doesn't exist
-        out_path += "generations/"
-        create_folder(out_path)
-        out_path += f"{model_name}/"
+        out_path = self.get_model_folder(out_path)+"generations/"
         create_folder(out_path)
 
         # extract the texts from the log
@@ -687,8 +653,7 @@ class Generator():
             with open(file_path, "w+") as out_file:
                 out_file.write("\n".join(generated_text[1:]))
                 generations_files.append(file_path)
-                if verbose: print(f"generated text at temperature {temperature} saved as {file_name}")
-        if verbose: print(f"\tin folder {out_path}")
+        if verbose: print(f"> Generations saved in folder {out_path}")
 
 
 ############################################################################
