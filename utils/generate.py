@@ -61,8 +61,9 @@ start = dataloader.get_comedy_start()
 print("start:\n", np.array(start))
 
 # Choose the list of temperatures (one generation for each temperature)
-# temperatures = np.round(np.linspace(0.5, 1.0, num=3), 2)
 temperatures = np.round(np.linspace(0.5, 1.5, num=5), 2)
+# temperatures = np.round(np.linspace(0.5, 1.0, num=3), 2)
+# temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 # temperatures = np.round(np.linspace(0.5, 1.5, num=11), 1)
 
 for ckpt_production in range(0, epochs_production+1, checkpoint):
@@ -71,13 +72,9 @@ for ckpt_production in range(0, epochs_production+1, checkpoint):
     generator.epochs['production'] = min(ckpt_production, epochs_production)
     generator.epochs['comedy'] = min(ckpt_comedy, epochs_comedy)
 
-    # TODO: fix generator.generations_table
-    try:
-      generator.load(out_path, verbose=False)
+    if os.path.isdir(generator.get_model_folder(out_path)):
       print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
+      generator.load(out_path, verbose=False)
       log = generator.generate_from_tercet(start, temperatures, 100)
       generator.save_generations(out_path, verbose=False)
       generator.generations_table(out_path, verbose=False)
-
-    except:
-      continue

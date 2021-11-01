@@ -305,7 +305,6 @@ class Generator():
 
             # decode the generated cantica and remove special tokens
             generated_string = clear_text(ints_to_text(generated_string, self.dataloader.idx2str))
-            print(generated_string)
 
             # append generated cantica to results
             generations.append(generated_string)
