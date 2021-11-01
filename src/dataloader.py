@@ -16,37 +16,28 @@ class DataLoader():
 
         self.comedy_name = comedy_name
         self.tokenization = tokenization
+
         self.datasets = {'production': None, 'comedy': None}
+        self.original_lengths = {'production': 0, 'comedy': 0}
+        self.repetitions = {'production': repetitions_production, 'comedy': repetitions_comedy}
+
+        self.vocab = []
+        self.train_order = []
+        self.files_dict = {}
+        self.tercet_max_len = 0
+        self.separator = '|'
+
+        if not tokenization == 'base' and not tokenization == 'spaces':
+            print(f"ERROR: incorrect tokenization parameter '{tokenization}'")
+            return
 
         if from_pickle:
             self.load(from_pickle, verbose)
         else:
-
-            # Initialize data
-            self.vocab = []
-            self.files_dict = {}
-            
-            # initialize datasets parameters
-            self.repetitions_production = repetitions_production
-            self.repetitions_comedy = repetitions_comedy
-            self.train_order = []
-            self.original_length_production = 0
-            self.original_length_comedy = 0
-            self.tercet_max_len = 0
-
-            # initialize separator based on tokenization type
-            if tokenization == 'base':      self.separator = ' '
-            elif tokenization == 'spaces':  self.separator = '|'
-            else:
-                print(f"ERROR: incorrect tokenization parameter '{tokenization}'")
-                return
-
-            # initialize dataloader's vocabulary, mappings and datasets
             self._init_train_order()
             self._read_files(in_path)
             self._init_vocab_and_mappings()
             self._init_datasets()
-
             if verbose: print(self)
 
     def __str__(self):
@@ -57,10 +48,10 @@ class DataLoader():
             f" - comedy_name: {self.comedy_name}",
             f" - tokenization: {self.tokenization}",
             f" - separator: {self.separator}",
-            f" - repetitions_production: {self.repetitions_production}",
-            f" - repetitions_comedy: {self.repetitions_comedy}",
-            f" - original_length_production: {self.original_length_production}",
-            f" - original_length_comedy: {self.original_length_comedy}",
+            f" - repetitions_production: {self.repetitions['production']}",
+            f" - repetitions_comedy: {self.repetitions['comedy']}",
+            f" - original_length_production: {self.original_lengths['production']}",
+            f" - original_length_comedy: {self.original_lengths['comedy']}",
             f" - tercet_max_len: {self.tercet_max_len}",
             "> TRAINING ORDER",
             "\n".join(([f" {i+1}- {self._get_clean_filename(filename)}" for i, filename in enumerate(self.train_order)])),
@@ -78,10 +69,10 @@ class DataLoader():
         '''initializes the generator training order, based on the
         training epochs for the production and comdedy datasets'''
 
-        if self.repetitions_production > 0:
+        if self.repetitions['production'] > 0:
             for filename in ['convivio','vita', 'detto','fiore']:
                 self.train_order.append(self._get_tokenized_filename(filename))
-        if self.repetitions_comedy > 0:
+        if self.repetitions['comedy'] > 0:
             self.train_order.append(self._get_tokenized_filename(self.comedy_name))
 
     def _read_files(self, directory:str):
@@ -118,8 +109,8 @@ class DataLoader():
         # - ending syllables        #
         #############################
 
-        syllables = sorted(
-            set().union(*[self._verses_to_syllables_set(self.files_dict[file_name]) for file_name in self.train_order]),
+        tokens = sorted(
+            set().union(*[self._verses_to_tokens_set(self.files_dict[file_name]) for file_name in self.train_order]),
             key=len)
 
         # initialize groups
@@ -128,20 +119,19 @@ class DataLoader():
         non_ending_sylls = []
         ending_sylls = []
 
-        for token in syllables:
+        for token in tokens:
             # NON-SYLLABLES
             if '<' in token:
-                # print("special:",token)
                 special_tokens.append(token)
             elif len(token) == 1 and not token.isalpha():
-                # print("punctuation:",token)
                 punctuation.append(token)
             # SYLLABLES
             else:
                 if not token == '' and not token[-1] == " ":
                     non_ending_sylls.append(token)
                 else:
-                    ending_sylls.append(token)
+                    if token:
+                        ending_sylls.append(token)
 
         # sort groups
         special_tokens = sorted(special_tokens, key=len)
@@ -154,7 +144,8 @@ class DataLoader():
             self.vocab.extend(group)
 
         # insert the empty string at poistion 0
-        if '' in self.vocab: self.vocab.remove('')
+        if '' in self.vocab: 
+            self.vocab.remove('')
         self.vocab.insert(0, '')
 
         # store vocabulary information
@@ -171,17 +162,17 @@ class DataLoader():
         self.idx2str = np.array(self.vocab)
 
     # Returns set of syllales from input list of verses
-    def _verses_to_syllables_set(self, verses_list, verbose:bool=False):
+    def _verses_to_tokens_set(self, verses_list, verbose:bool=False):
     
-        syllables = split_tokens(verses_list, self.separator)
-        syllables = flatten(syllables)
-        syllables = sorted(set(syllables), key=len)
+        tokens = split_tokens(verses_list, self.separator)
+        tokens = flatten(tokens)
+        tokens = sorted(set(tokens), key=len)
 
         if verbose:
-            print(syllables)
-            print("syllables set: ", len(syllables))
+            print(tokens)
+            print("tokens set: ", len(tokens))
 
-        return syllables
+        return tokens
 
 
     ############################################################################
@@ -192,10 +183,13 @@ class DataLoader():
 
         '''creates the dataset to be fed to the generator'''
 
-        for key, dataset in self.datasets.items():
+        if not self.datasets:
+            self.datasets = {'production': None, 'comedy': None}
+
+        for dataset_name, dataset in self.datasets.items():
 
             ## Production dataset
-            if key == "production" and self.repetitions_production > 0:
+            if dataset_name == "production" and self.repetitions[dataset_name] > 0:
 
                 # Append all productions texts
                 dataset = []
@@ -204,25 +198,25 @@ class DataLoader():
                         dataset.append(self.files_dict[filename])
 
                 # Split input target for Dante' Production dataset
-                dataset, self.original_length_production, _ = self._split_input_target(
-                    dataset_name = key,
+                dataset, self.original_lengths[dataset_name], _ = self._split_input_target(
+                    dataset_name = dataset_name,
                     dataset = dataset, 
                     inp_len = 3, tar_len = 3,
-                    repetitions = self.repetitions_production)
+                    repetitions = self.repetitions[dataset_name])
 
             ## Comedy dataset
-            elif key == "comedy" and self.repetitions_comedy > 0:
+            elif dataset_name == "comedy" and self.repetitions[dataset_name] > 0:
 
                 dataset = self.files_dict[self._get_tokenized_filename(self.comedy_name)]
 
                 # Split input target for Divine Comedy dataset
-                dataset, self.original_length_comedy, self.tercet_max_len = self._split_input_target(
-                    dataset_name = key,
+                dataset, self.original_lengths[dataset_name], self.tercet_max_len = self._split_input_target(
+                    dataset_name = dataset_name,
                     dataset = dataset,
                     inp_len = 3, tar_len = 4,
-                    repetitions = self.repetitions_comedy)
+                    repetitions = self.repetitions[dataset_name])
 
-            self.datasets[key] = dataset
+            self.datasets[dataset_name] = dataset
 
 
     def _split_input_target(self, dataset_name:str, dataset, 
@@ -282,14 +276,19 @@ class DataLoader():
     #####################       SAVE AND LOAD           ########################
     ############################################################################
 
+    def get_name(self):
+        return f"{self.comedy_name}_{self.tokenization}"
+
     def save(self, path:str, verbose:bool=False):
 
         '''saves the dataloader's attributes to a pickle file'''
 
-        if path.endswith('/'):
-            filename = path+f'dataloader_{self.comedy_name}_{self.tokenization}.pkl'
-        else:
-            filename = path+f'/dataloader_{self.comedy_name}_{self.tokenization}.pkl'
+        # create output folders
+        create_folder(path)
+        path += self.get_name() + "/"
+        create_folder(path)
+
+        filename = path+"dataloader.pkl"
 
         temp = self.datasets.copy()
         self.datasets = None
@@ -302,18 +301,17 @@ class DataLoader():
 
         '''initializes the dataloader's attributes from existing pickle file'''
 
-        if path.endswith('/'):
-            filename = path+f'dataloader_{self.comedy_name}_{self.tokenization}.pkl'
-        else:
-            filename = path+f'/dataloader_{self.comedy_name}_{self.tokenization}.pkl'
+        filename = path+f"{self.get_name()}/dataloader.pkl"
 
         with open(filename, 'rb') as f:
             temp = pickle.load(f)
             for attr, value in temp.__dict__.items():
                 self.__dict__[attr] = value
 
-        if verbose: print(">> Dataloader loaded from:", filename)
         self._init_datasets()
+
+        if verbose:
+            print(">> Dataloader loaded from:", filename)
 
     ############################################################################
     ##########################          UTILS         ##########################
@@ -327,25 +325,36 @@ class DataLoader():
         for info in self.vocab_info:
             print(" - {}: {}".format(info, self.vocab_info[info]))
 
-    def print_comedy_samples(self, n:int=1):
+    def print_comedy_samples(self, n:int=1, text:bool=True, ints:bool=False):
 
         '''prints a decoded example of input-target couple for generator's training'''
 
         # Print samples of the generated Comedy dataset
         for (batch, (inputs, targets)) in enumerate(self.datasets['comedy'].take(n)):
             print("\n{} [ Dataset Sample: {} ] {}\n".format("="*13, batch+1, "="*13))
-            print("-- input:\n\n{}\n-- target:\n\n{}".format(
-                clear_text(ints_to_text(inputs[0], self.idx2str)),
-                clear_text(ints_to_text(targets[0], self.idx2str))
-            ))
+            if text:
+                print("-- input:\n\n{}\n-- target:\n\n{}".format(
+                    clear_text(ints_to_text(inputs[0], self.idx2str)),
+                    clear_text(ints_to_text(targets[0], self.idx2str)),
+                ))
+            if ints:
+                print("-- input ({}):\n\n{}\n\n-- target ({}):\n\n{}\n".format(
+                    len(inputs[0]),
+                    inputs[0],
+                    len(targets[0]),
+                    targets[0]
+                ))
+
         print("{}".format("="*45))
 
     def get_comedy_start(self):
+
         '''returns the list of the first three verses of the divine comedy'''
+        
         return self.files_dict[self._get_tokenized_filename(self.comedy_name)][:3]
 
     ############################################################################
-    #######################     MANAGE FILENAMES      ##########################
+    #######################     FILES MANAGEMENT      ##########################
     ############################################################################
 
 
@@ -376,3 +385,11 @@ class DataLoader():
         if "tokenized" in filename:
             filename = self._get_original_filename(filename)
         return filename.replace(".txt", "")
+
+# leave out of class
+def create_folder(path:str):
+
+    '''create folder if it doesn't exist'''
+
+    if not os.path.exists(path):
+        os.mkdir(path)

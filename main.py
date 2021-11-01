@@ -1,24 +1,24 @@
 ############################ SETUP ############################
 
-runtimes = ['local', 'slurm', 'colab']
-runtime = 'local'
-comedy_name  = 'comedy_11_np_is_es'
-tokenization = 'spaces'
-
 from src.parser import Parser
-if runtime in runtimes: parser = Parser(runtime)
-else: raise ValueError(f"Incorrect runtime found. Please choose one in {runtimes}.")
+
+runtime = 'local'
+parser = Parser(runtime)
+
+if runtime == 'colab':
+  comedy_name  = 'comedy_np_is_es'
+  tokenization = 'base'
+else:
+  comedy_name  = parser.comedy_name
+  tokenization = parser.tokenization
 
 ############################ ARGS ############################
+
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import numpy as np
 from src.generator import Generator
 from src.dataloader import DataLoader
-
-## DATASET INFO
-if parser.comedy_name:  comedy_name  = parser.comedy_name
-if parser.tokenization: tokenization = parser.tokenization
 
 ## PATHS
 in_path  = parser.in_path
@@ -42,14 +42,10 @@ checkpoint        = parser.checkpoint
 ## VERBOSE
 verbose = parser.verbose
 
-######################### OUTPUT FOLDERS #########################
-
-dataloaders_path = out_path + 'dataloaders/'
-# Create output folders
-for folder in [out_path, dataloaders_path]:
-  if not os.path.exists(out_path):
-      os.mkdir(out_path)
-      print("CREATED: ", folder)
+# Create output folder
+if not os.path.exists(out_path):
+    os.mkdir(out_path)
+    print("CREATED: ", out_path)
 
 ########################### DATALOADER ###########################
 
@@ -60,8 +56,8 @@ dataloader = DataLoader(in_path=in_path,
                         repetitions_comedy=epochs_comedy,
                         verbose = verbose)
 
-# dataloader.print_comedy_samples(1)
-dataloader.save(dataloaders_path)
+# dataloader.print_comedy_samples(1, text=True, ints=False)
+dataloader.save(out_path)
 
 ############################ GENERATOR ############################
 
@@ -95,16 +91,16 @@ if not runtime == 'colab': # let's not waste colab precious gpu time
   for ckpt_production in range(0, epochs_production+1, checkpoint):
     for ckpt_comedy in range(0, epochs_comedy+1, checkpoint):
       
-      generator.trained_epochs_production = min(ckpt_production, epochs_production)
-      generator.trained_epochs_comedy = min(ckpt_comedy, epochs_comedy)
+      generator.epochs['production'] = min(ckpt_production, epochs_production)
+      generator.epochs['comedy'] = min(ckpt_comedy, epochs_comedy)
 
       # TODO: fix generator.generations_table
       try:
-        generator.load_model_weights(out_path, verbose=False)
-        print(f"\n>> RESULTS FOR CHECKPOINT: {generator.trained_epochs_production}_{generator.trained_epochs_comedy}")
+        generator.load(out_path, verbose=False)
+        print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
         log = generator.generate_from_tercet(start, temperatures, 100)
         generator.save_generations(out_path, verbose=False)
-        # generator.generations_table(out_path, verbose)
+        generator.generations_table(out_path, verbose)
 
       except:
         continue

@@ -4,7 +4,8 @@ class Parser(ArgumentParser):
 
     def __init__(self, runtime:str):
 
-        super().__init__()
+        if runtime not in ['local', 'slurm', 'colab']:
+            raise ValueError(f"Incorrect runtime found. Please choose one in {runtimes}.")
 
         ## DATASET INFO
         self.comedy_name = None
@@ -20,7 +21,7 @@ class Parser(ArgumentParser):
             
         ## OUT_PATHS
         if runtime == 'local':
-            self.out_path  = "data/tokenized/"
+            self.out_path  = "results/"
         elif runtime == 'slurm':
             self.out_path  = '../../../../../public/alessandro.liscio/results/'
         elif runtime == 'colab':
@@ -43,7 +44,10 @@ class Parser(ArgumentParser):
 
         ## VERBOSE
         self.verbose = True
-        self.__init_args__(runtime)
+
+        if not runtime == 'colab':
+            super().__init__()
+            self.__init_args__(runtime)
 
 
     def __init_args__(self, runtime:str):

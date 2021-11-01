@@ -24,11 +24,10 @@ class Generator():
                     epochs_production:int = 0, epochs_comedy:int = 0,
                     verbose:bool = True):  
         
-        # initialize trained epochs
-        self.trained_epochs_production = 0
-        self.trained_epochs_comedy = 0
+        # initialize epochs
+        self.epochs = {'production': 0, 'comedy': 0}
 
-        # transformer model instantiation
+        # model instantiation
         self.dataloader = dataloader
         self.model = Transformer(num_layers_encoder = encoders,
                                 num_layers_decoder = decoders,
@@ -70,8 +69,8 @@ class Generator():
             f" - optimizer: {str(type(self.optimizer))[:-2].split('.')[-1]}",
             f" - loss: {str(type(self.loss_object))[:-2].split('.')[-1]}",
             f" - metric: {str(type(self.train_accuracy))[:-2].split('.')[-1]}",
-            f" - epochs_production: {self.trained_epochs_production}/{self.dataloader.repetitions_production}",
-            f" - epochs_comedy: {self.trained_epochs_comedy}/{self.dataloader.repetitions_comedy}",
+            f" - epochs_production: {self.epochs['production']}",
+            f" - epochs_comedy: {self.epochs['comedy']}",
             ""
         ))
 
@@ -79,31 +78,81 @@ class Generator():
     ############################################################################
     ######################            TRAINING            ######################
     ############################################################################      
+    
+
+    def train_model(self, checkpoint:int = None, out_path:str = None):
+        '''train model on all the datasets'''
+        for key, dataset in self.dataloader.datasets.items():
+            if self.dataloader.repetitions[key] > 0:
+                self.train_on_dataset(key, dataset, out_path, checkpoint)
+
+    def train_on_dataset(self,
+                        dataset_name,
+                        dataset,
+                        out_path:str = None,
+                        checkpoint:int = None):
+
+        '''train model on target dataset. As the dataset has been
+        repeated several times (each time singularly shuffled)
+        instead of using the concept of "epochs" on the same dataset,
+        the original dataset length is required as input, in order to
+        update training metrics and histories at each dataset
+        repetition (which basically counts as an "epoch").
+        Based on 'dataset_name', at each epoch, the generator parameters
+        'epochs_production' or 'epochs_comedy' are updated.'''
+
+        assert (dataset_name == "comedy" or dataset_name == "production")
         
-    def _loss_function(self, real, pred):
+        # initialize training variables
+        start = time.time()
+        epoch = 1
+        loss_history = []
+        accuracy_history = []
+        epochs = self.dataloader.repetitions[dataset_name]
+        original_length = self.dataloader.original_lengths[dataset_name]
 
-        '''model's loss function: given as input the real target
-        and the prediction, it computes the loss value ignoring
-        the masked tokens.'''
-
-        # "mask" is a boolean tensor with False values on padding values (0 values) 
-        mask = tf.math.logical_not(tf.math.equal(real, 0))
-        # "loss_" is a tensor of float values
-        loss_ = self.loss_object(real, pred)
-        # convert mask boolean values to float (False=0. and True=1.)
-        mask = tf.cast(mask, dtype=loss_.dtype)
-        # apply mask to loss tensor
-        loss_ *= mask
-
-        # # syllables mask
-        # sylls_mask = tf.math.greater_equal(pred, self.alphas_start)
-        # hendec_score = abs(11.0 - tf.reduce_sum(tf.cast(sylls_mask, tf.float32))/4)
-        # # sylls_mask *= tf.where(sylls_mask, 1.2, 1.0)
-        # return tf.reduce_sum(loss_)/tf.reduce_sum(mask)*hendec_score
+        for (batch, (inp, tar)) in enumerate(dataset):
+                
+            # update gradients
+            self._train_step(inp, tar)
         
-        # returns a single float value representing the loss value
-        return tf.reduce_sum(loss_)/tf.reduce_sum(mask)
+            # show/update output progress bar
+            print_progress(batch, len(dataset),
+                "  ".join((
+                    f"epoch {epoch}/{epochs}",
+                    "loss: {:.4f}".format(self.train_loss.result()),
+                    "accuracy: {:.4f}".format(self.train_accuracy.result()))))
 
+            # At the end of each epoch:
+            if batch != 0 and batch % original_length == 0:
+
+                # Increment epoch and restart timer
+                self.epochs[dataset_name] += 1
+                epoch +=1   
+
+                # Update histories
+                t = round(time.time() - start)
+                self._update_history(dataset_name, t)
+
+                # Reset loss and accuracy states
+                self.train_loss.reset_states()
+                self.train_accuracy.reset_states()
+
+                # Save model weights, log and history plots every "checkpoint" epochs
+                if checkpoint and out_path:
+                    if batch != 0 and batch % (original_length*checkpoint) == 0:
+                        self.save(out_path, verbose=False)
+             
+                start = time.time()
+
+
+        # Stop timer
+        t = self.log["trainings"][dataset_name]["time"]
+        print(f'\n\tTraining completed in {int(t/3600)}h {int(t/60%60)}m {int(t%60)}s.\n')
+
+        # Update histories and save model weights, log and history plots
+        if out_path:
+            self.save(out_path, verbose=False)
 
     @tf.function(input_signature=_train_step_signature)
     def _train_step(self, inp, tar):
@@ -133,166 +182,99 @@ class Generator():
             # compute loss function
             loss = self._loss_function(tar_real, predictions)
         
-        # compute gradients
-        gradients = tape.gradient(loss, self.model.trainable_variables)    
-        
-        # apply gradients
+        # compute gradients and apply gradients
+        gradients = tape.gradient(loss, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
         
         # update training metrics
         self.train_loss(loss)
         self.train_accuracy(tar_real, predictions)
-
-    
-    def train_on_dataset(self,
-                        dataset,
-                        dataset_name,
-                        out_path:str = None,
-                        checkpoint:int = None):
-
-        '''train model on target dataset. As the dataset has been
-        repeated several times (each time singularly shuffled)
-        instead of using the concept of "epochs" on the same dataset,
-        the original dataset length is required as input, in order to
-        update training metrics and histories at each dataset
-        repetition (which basically counts as an "epoch").
-        Based on 'dataset_name', at each epoch, the generator parameters
-        'epochs_production' or 'epochs_comedy' are updated.'''
-
-        assert (dataset_name == "comedy" or dataset_name == "production")
-
-        # start timer
-        start = time.time()
-        
-        # initialize training variables
-        epoch = 1
-        loss_history = []
-        accuracy_history = []
             
-        # compute original dataset size
-        if dataset_name == 'comedy':
-            epochs = self.dataloader.repetitions_comedy
-            original_length = self.dataloader.original_length_comedy
-        else:
-            epochs = self.dataloader.repetitions_production
-            original_length = self.dataloader.original_length_production
+    def _loss_function(self, real, pred):
 
-        for (batch, (inp, tar)) in enumerate(dataset):
-                
-            # update gradients
-            self._train_step(inp, tar)
+        '''model's loss function: given as input the real target
+        and the prediction, it computes the loss value ignoring
+        the masked tokens.'''
+
+        # "mask" is a boolean tensor with False values on padding values (0 values) 
+        mask = tf.math.logical_not(tf.math.equal(real, 0))
+        # "loss_" is a tensor of float values
+        loss_ = self.loss_object(real, pred)
+        # convert mask boolean values to float (False=0. and True=1.)
+        mask = tf.cast(mask, dtype=loss_.dtype)
+        # apply mask to loss tensor
+        loss_ *= mask
+
+        # # syllables mask
+        # sylls_mask = tf.math.greater_equal(pred, self.alphas_start)
+        # hendec_score = abs(11.0 - tf.reduce_sum(tf.cast(sylls_mask, tf.float32))/4)
+        # # sylls_mask *= tf.where(sylls_mask, 1.2, 1.0)
+        # return tf.reduce_sum(loss_)/tf.reduce_sum(mask)*hendec_score
         
-            # show/update output progress bar
-            print_progress(
-                batch,
-                len(dataset),
-                "  ".join((
-                    f"epoch {epoch}/{epochs}",
-                    "loss: {:.4f}".format(self.train_loss.result()),
-                    "accuracy: {:.4f}".format(self.train_accuracy.result())
-                )))
-
-            # update metrics and training history at each epoch
-            if batch != 0 and batch % original_length == 0:
-
-                # Append values to histories
-                loss_history.append('{:.4f}'.format(self.train_loss.result()))
-                accuracy_history.append('{:.4f}'.format(self.train_accuracy.result()))
-
-                # Reset loss and accuracy states
-                self.train_loss.reset_states()
-                self.train_accuracy.reset_states()
-                epoch +=1
-
-                # Update generator trained epochs
-                if dataset_name == "comedy":
-                    self.trained_epochs_comedy += 1
-                else:
-                    self.trained_epochs_production += 1
-
-            # save model weights, log and history plots every "checkpoint" epochs
-            if checkpoint and out_path:
-                if batch != 0 and batch % (original_length*checkpoint) == 0:
-                    self.save_model_weights(out_path, verbose=False)
-                    self.save_log(out_path, verbose=False)
-                    if dataset_name == "production":
-                        self.plot_history('production', out_path, verbose=False)
-                    elif dataset_name == "comedy":
-                        self.plot_history('comedy', out_path, verbose=False)
-
-        # append last values to histories
-        loss_history.append('{:.4f}'.format(self.train_loss.result()))
-        accuracy_history.append('{:.4f}'.format(self.train_accuracy.result()))
-
-        # stop timer
-        t = round(time.time() - start)
-        print(f'\n\tTraining completed in {int(t/3600)}h {int(t/60%60)}m {int(t%60)}s.\n')
-
-        # save model weights, log and history plots
-        if out_path:
-            self.save_model_weights(out_path, verbose=False)
-            self.save_log(out_path, verbose=False)
-            if dataset_name == "production":
-                self.plot_history('production', out_path, verbose=False)
-            elif dataset_name == "comedy":
-                self.plot_history('comedy', out_path, verbose=False)
+        # returns a single float value representing the loss value
+        return tf.reduce_sum(loss_)/tf.reduce_sum(mask)
         
-        return (t, loss_history, accuracy_history)
-
-    def train_model(self, checkpoint:int = None, out_path:str = None):
-        
-        for key, dataset in self.dataloader.datasets.items():
-
-            # train model on single dataset
-            if (key == "production" and self.dataloader.repetitions_production > 0) or (
-                key == "comedy" and self.dataloader.repetitions_comedy > 0):
-                history = self.train_on_dataset(dataset, key, out_path, checkpoint)
-
-                # update generator log
-                self.log["trainings"][key]["time"] = history[0]
-                self.log["trainings"][key]["loss_history"] = history[1]
-                self.log["trainings"][key]["acc_history"] = history[2]
-            
 
     ############################################################################
-    ################       SAVE AND LOAD WEIGHTS           #####################
+    ##################            SAVE AND LOAD           ######################
     ############################################################################   
+
+    def save(self, path:str, verbose:bool=True):
+        self.save_model_weights(path, verbose)
+        self.save_log(path, verbose)
+        self.plot_history(path, verbose)
+
+    def load(self, path:str, verbose:bool=True):
+        self.load_model_weights(path, verbose)
+        self.load_log(path, verbose)
 
     def save_model_weights(self, path:str, verbose:bool=True):
 
         '''saves the weights of the model to target path. The name
         of the file is based on the instantiated model's parameters'''
 
-        # create model's folder 
-        model_name = self.get_model_name()
-        w_path = path + model_name + "/"
-        create_folder(w_path)
+        # create out path's folder
+        create_folder(path)
+
+        # create dataloader's folder
+        path += self.get_dataloader_name() + "/"
+        create_folder(path)
+
+        # create model's folder
+        path += self.get_model_name() + "/"
+        create_folder(path)
 
         # create checkpoint folder
-        w_path += f"{self.trained_epochs_production}_{self.trained_epochs_comedy}/"
-        create_folder(w_path)
+        path += self.get_checkpoint_name() + "/"
+        create_folder(path)
 
         # create weights folder
-        w_path += "weights/"
-        create_folder(w_path)
+        path += "weights/"
+        create_folder(path)
 
         # save weights
-        self.model.save_weights(w_path)
-        w_path = w_path.replace("weights/", "")
-        if verbose: print("\n> Saved weights to checkpoint", w_path)
+        self.model.save_weights(path)
+        path = path.replace("weights/", "")
+        if verbose: print("\n> Saved weights to checkpoint", path)
 
     def load_model_weights(self, path:str, verbose:bool=True):
 
         '''loads the weights of the model from input path, based on the
         instantiated model's parameters'''
 
-        # get model name for the file name
-        w_path = self.get_model_folder(path)+"weights/"
+        path = self.get_model_folder(path)+"weights/"
+        self.model.load_weights(path)
+        path = path.replace("weights/", "")
+        if verbose: print("\n> Loaded weights from checkpoint", path)
 
-        self.model.load_weights(w_path)
-        w_path = w_path.replace("weights/", "")
-        if verbose: print("\n> Loaded weights from checkpoint", w_path)
+    def load_log(self, path:str, verbose:bool=True):
 
+        '''loads the generator's log from input path, based on the
+        instantiated model's parameters'''
+
+        log_path = self.get_model_folder(path)+"log.json"
+        with open(log_path, "r") as f:
+            self.log = json.load(f)
 
     ############################################################################
     ######################          GENERATION              ####################
@@ -456,8 +438,8 @@ class Generator():
                 "comedy_name": self.dataloader.comedy_name,
                 "tokenization": self.dataloader.tokenization,
                 "separator": self.dataloader.separator,
-                "original_length_production": self.dataloader.original_length_production,
-                "original_length_comedy": self.dataloader.original_length_comedy,
+                "original_length_production": self.dataloader.original_lengths['production'],
+                "original_length_comedy": self.dataloader.original_lengths['comedy'],
                 "tercet_max_len": self.dataloader.tercet_max_len,
                 "train_order": self.dataloader.train_order,
                 "vocab_info": self.dataloader.vocab_info,
@@ -469,24 +451,35 @@ class Generator():
                     "metric" : str(type(self.train_accuracy))[:-2].split('.')[-1]
                 },
                 "production": {
-                    "epochs" : self.trained_epochs_production,
+                    "epochs" : self.epochs['production'],
                     "time": 0,
-                    "loss_history": ["0"],
-                    "acc_history": ["0"]
+                    "loss_history": [],
+                    "acc_history": []
                 },
                 "comedy": {
-                    "epochs" : self.trained_epochs_comedy,
+                    "epochs" : self.epochs['comedy'],
                     "time": 0,
-                    "loss_history": ["0"],
-                    "acc_history": ["0"]
+                    "loss_history": [],
+                    "acc_history": []
                 }
             }
         }
 
+    def _update_history(self, dataset_name, t):
+
+        '''update log training histories'''
+    
+        self.log["trainings"][dataset_name]["epochs"] = self.epochs[dataset_name]
+        self.log["trainings"][dataset_name]["time"] += t
+
+        self.log["trainings"][dataset_name]["loss_history"].append("{:.4f}".format(self.train_accuracy.result()))
+        self.log["trainings"][dataset_name]["acc_history"].append("{:.4f}".format(self.train_accuracy.result()))
+
+    def get_dataloader_name(self):
+        return self.dataloader.get_name()
+        
     def get_model_name(self):
         return "_".join((
-            f"{self.dataloader.comedy_name}",
-            f"{self.dataloader.tokenization}",
             f"{self.model.num_layers_encoder}",
             f"{self.model.num_layers_decoder}",
             f"{self.model.num_heads}",
@@ -495,10 +488,10 @@ class Generator():
         ))
 
     def get_checkpoint_name(self):
-        return f"{self.trained_epochs_production}_{self.trained_epochs_comedy}"
+        return f"{self.epochs['production']}_{self.epochs['comedy']}"
 
     def get_model_folder(self, out_path:str):
-        return f"{out_path}{self.get_model_name()}/{self.get_checkpoint_name()}/"
+        return f"{out_path}{self.get_dataloader_name()}/{self.get_model_name()}/{self.get_checkpoint_name()}/"
 
     ############################################################################
     #################               RESULTS                #####################
@@ -522,44 +515,48 @@ class Generator():
                 else:
                     print(f"   -- {info}: {self.log['trainings'][training][info]}")
                     
-    def plot_history(self, dataset_name:str='comedy', out_path:str=None, verbose:str=True):
+    def plot_history(self, out_path:str=None, verbose:str=True):
 
         '''plot loss and accuracy histories. If 'out_path' is not None
         the figure is saved in 'out_path'. If 'verbose' is True the
         plot is shown.'''
 
-        fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2, figsize=(30, 10))
+        for dataset_name in self.log['trainings']:
 
-        # loss history
-        loss_history = self.log['trainings'][dataset_name]['loss_history']
-        for i, loss in enumerate(loss_history):
-            loss_history[i] = float(loss_history[i])
+            if dataset_name != 'info':
 
-        # accuracy history
-        acc_history = self.log['trainings'][dataset_name]['acc_history']
-        for i, loss in enumerate(acc_history):
-            acc_history[i] = float(acc_history[i]) 
+                fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2, figsize=(30, 10))
+                
+                # loss history
+                loss_history = self.log['trainings'][dataset_name]['loss_history']
+                for i, loss in enumerate(loss_history):
+                    loss_history[i] = float(loss_history[i])
 
-        # plot loss history
-        ax0.set_title('Loss History', color='lightblue', fontsize=15, fontweight= 'bold')
-        ax0.set_xticks(range(0,len(loss_history),5))
-        ax0.grid()
-        ax0.plot(loss_history, color='blue')
+                # accuracy history
+                acc_history = self.log['trainings'][dataset_name]['acc_history']
+                for i, loss in enumerate(acc_history):
+                    acc_history[i] = float(acc_history[i])
 
-        # plot accuracy history
-        ax1.set_title('Accuracy History', color='orange', fontsize=15, fontweight= 'bold')
-        ax1.set_xticks(range(0,len(acc_history),5))
-        ax1.set_ylim(top=1)
-        ax1.grid()
-        ax1.plot(acc_history, color='red')
+                # plot loss history
+                ax0.set_title('Loss History', color='lightblue', fontsize=15, fontweight= 'bold')
+                ax0.set_xticks(range(0,len(loss_history),5))
+                ax0.grid()
+                ax0.plot(loss_history, color='blue')
 
-        # save plot as .png and show it
-        if out_path:
-            plt.savefig(self.get_model_folder(out_path)+f"{dataset_name}_history.png")
-        
-        # if verbose, display plot
-        if verbose:
-            plt.show()
+                # plot accuracy history
+                ax1.set_title('Accuracy History', color='orange', fontsize=15, fontweight= 'bold')
+                ax1.set_xticks(range(0,len(acc_history),5))
+                ax1.set_ylim(top=1)
+                ax1.grid()
+                ax1.plot(acc_history, color='red')
+
+                # save plot as .png and show it
+                if out_path:
+                    plt.savefig(self.get_model_folder(out_path)+f"{dataset_name}_history.png")
+                
+                # if verbose, display plot
+                if verbose:
+                    plt.show()
 
     def generations_table(self, out_path:str=None, verbose:bool=True):
 
@@ -567,7 +564,6 @@ class Generator():
 
         # Generations
         generations = []
-        temperatures = []
         max_len = 0
         for temp in self.log['generations']:
             canto = self.log['generations'][temp]
@@ -579,12 +575,12 @@ class Generator():
             canto = canto.replace(' ;',';')
             canto = canto.split('\n')
             generations.append(canto)
-            temperatures.append(temp)
             if len(self.log['generations'][temp]) > max_len:
                 max_len = len(self.log['generations'][temp])
 
         # header of the table
         head_line = "\n\t    "
+        temperatures = [temp for temp in self.log['generations']]
         for temp in temperatures:
             head_line += "{:<45}".format(temp)
         head_line += "\n\n"
