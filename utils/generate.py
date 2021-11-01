@@ -77,7 +77,7 @@ for ckpt_production in range(0, epochs_production+1, checkpoint):
       print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
       log = generator.generate_from_tercet(start, temperatures, 100)
       generator.save_generations(out_path, verbose=False)
-      generator.generations_table(out_path, verbose)
+      generator.generations_table(out_path, verbose=False)
 
     except:
       continue

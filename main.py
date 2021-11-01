@@ -100,7 +100,7 @@ if not runtime == 'colab': # let's not waste colab precious gpu time
         print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
         log = generator.generate_from_tercet(start, temperatures, 100)
         generator.save_generations(out_path, verbose=False)
-        generator.generations_table(out_path, verbose)
+        generator.generations_table(out_path, verbose=False)
 
       except:
         continue
