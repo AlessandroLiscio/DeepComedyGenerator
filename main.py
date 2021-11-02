@@ -49,15 +49,21 @@ if not os.path.exists(out_path):
 
 ########################### DATALOADER ###########################
 
-dataloader = DataLoader(in_path=in_path,
-                        comedy_name=comedy_name,
-                        tokenization=tokenization,
-                        repetitions_production=epochs_production,
-                        repetitions_comedy=epochs_comedy,
+if os.path.isfile(f"{out_path}{comedy_name}_{tokenization}/dataloader.pkl"):
+  dataloader = DataLoader(from_pickle = out_path,
+                        comedy_name = comedy_name,
+                        tokenization = tokenization,
                         verbose = verbose)
+else:
+  dataloader = DataLoader(in_path=in_path,
+                          comedy_name=comedy_name,
+                          tokenization=tokenization,
+                          repetitions_production=epochs_production,
+                          repetitions_comedy=epochs_comedy,
+                          verbose = verbose)
+  dataloader.save(out_path)
 
 # dataloader.print_comedy_samples(1, text=True, ints=False)
-dataloader.save(out_path)
 
 ############################ GENERATOR ############################
 
@@ -93,9 +99,9 @@ if not runtime == 'colab': # let's not waste colab precious gpu time
       generator.epochs['production'] = min(ckpt_production, epochs_production)
       generator.epochs['comedy'] = min(ckpt_comedy, epochs_comedy)
 
-    if os.path.isdir(generator.get_model_folder(out_path)):
-        print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
-        generator.load(out_path, verbose=False)
-        log = generator.generate_from_tercet(start, temperatures, 100)
-        generator.save_generations(out_path, verbose=False)
-        generator.generations_table(out_path, verbose=False)
+      if os.path.isdir(generator.get_model_folder(out_path)):
+          print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
+          generator.load(out_path, verbose=False)
+          log = generator.generate_from_tercet(start, temperatures, 100)
+          generator.save_generations(out_path, verbose=False)
+          generator.generations_table(out_path, verbose=False)

@@ -647,6 +647,7 @@ class Generator():
             with open(file_path, "w+") as out_file:
                 out_file.write("\n".join(generated_text[1:]))
                 generations_files.append(file_path)
+                
         if verbose: print(f"> Generations saved in folder {out_path}")
 
 
