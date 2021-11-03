@@ -205,10 +205,14 @@ class Generator():
         # apply mask to loss tensor
         loss_ *= mask
 
+        #TODO: IMPLEMENTARE LOSS PER ENDECASILLABI
+        # # syllables mask
+        # sylls_mask = tf.math.equal(pred, self.eov)
+        # sylls_mask *= tf.where(sylls_mask, 2.0, 1.0)
+
         # # syllables mask
         # sylls_mask = tf.math.greater_equal(pred, self.alphas_start)
         # hendec_score = abs(11.0 - tf.reduce_sum(tf.cast(sylls_mask, tf.float32))/4)
-        # # sylls_mask *= tf.where(sylls_mask, 1.2, 1.0)
         # return tf.reduce_sum(loss_)/tf.reduce_sum(mask)*hendec_score
         
         # returns a single float value representing the loss value
@@ -292,26 +296,26 @@ class Generator():
         generations = []
         for temp in temperatures:
 
-            print(f"- temperature {temp}... ", end="")
+            # print(f"- temperature {temp}... ", end="")
 
             # start timer
             t_start = time.time()
 
             # generate cantica
-            generated_string = self._generate(start = start,
+            generated = self._generate(start = start,
                                                 max_len = self.dataloader.tercet_max_len,
                                                 n_verses = n_verses,
                                                 temperature = temp)
 
             # decode the generated cantica and remove special tokens
-            generated_string = clear_text(ints_to_text(generated_string, self.dataloader.idx2str))
+            generated = clear_text(ints_to_text(generated, self.dataloader.idx2str))
 
             # append generated cantica to results
-            generations.append(generated_string)
+            generations.append(generated)
 
             # stop timer
             t_gen = round(time.time() - t_start)
-            print(f"completed ({int(t_gen/3600)}h {int(t_gen/60%60)}m {int(t_gen%60)}s)")
+            # print(f"completed ({int(t_gen/3600)}h {int(t_gen/60%60)}m {int(t_gen%60)}s)")
 
         self.log["generations"] = {}
         for i, temp in enumerate(temperatures):
@@ -326,50 +330,39 @@ class Generator():
         influenced by the temperature: the higher the temperature, the more 
         original (or crazy) is the text.'''
 
-        # end-of-verse
-        eov = self.dataloader.str2idx['</v>']
-
-        # drop the first verse to keep a window of 3 verses
-        def drop_first_verse(sequence):
-            for i, token in enumerate(sequence):
-                if token == eov:
-                    return sequence[i+1:]
-
         # variables initialization
         input_sequence = start.copy()
         generated = []
 
         try:
-            for _ in range(n_verses):
+            for _ in range(int(n_verses/3)+1):
 
                 # pad the input list to reach the max_len
                 input_list = list(
                     tf.keras.preprocessing.sequence.pad_sequences(
                             [input_sequence],
-                            maxlen=max_len
-                        )[0]
-                    )
+                            maxlen=max_len)[0])
 
                 # generate one verse
-                generated_verse, _ = self._generate_verse(input_list,
-                                                        eov = eov,
-                                                        max_len = int(max_len/3),
+                generated_tercet, _ = self._generate_tercet(input_list,
                                                         temperature=temperature)
 
+                print('\n', len(generated_tercet))
+                print(generated_tercet)
+                print(clear_text(ints_to_text(generated_tercet, self.dataloader.idx2str)))
+                
                 # append the generated verse to the input sequence
-                input_sequence += generated_verse
-
-                # drop the first verse to keep a window of 3 verses
-                input_sequence = drop_first_verse(input_sequence)
+                input_sequence = generated_tercet
 
                 # append the generated verse to the output
-                generated += generated_verse
+                generated += generated_tercet
+                
         except:
             return generated
         
         return generated
 
-    def _generate_verse(self, input_list, eov, max_len:int=100, temperature:int=1.0):
+    def _generate_tercet(self, input_list, temperature:int=1.0):
 
         '''generate tokens, starting from 'input_list', until 'eov' token
         is generated or 'max_len' tokens limit has been reached. The generation
@@ -380,38 +373,22 @@ class Generator():
         encoder_input = tf.expand_dims(input_list, 0)
         decoder_input = tf.expand_dims(input_list, 0)
         
-        # the final output of the evaluation (initially, this is an empty list)
-        output = []
-        
-        # we repeat the process to get the entire verse (end-of-verse token is predicted)
-        for i in range(max_len):
-            enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)  
-            logits, attention_weights = self.model(
-                encoder_input, decoder_input, False,
-                enc_padding_mask, combined_mask, dec_padding_mask
-            )
-        
-            # the higher the temperature, the more original (or crazy) is the text
-            predictions = logits[: ,:, :]
-            predictions /= temperature
+        #TODO: TEST BEAM SEARCH
+        enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
 
-            # with beam search
-            # predictions = tf.exp(predictions) / tf.reduce_sum(tf.exp(predictions), axis) # softmax
-            # predicted_id = tf.cast(beam_search_decoder(tensor=predictions, beam_width=5, verbose=True), tf.int32)
+        logits, attention_weights = self.model(
+            encoder_input, decoder_input, False,
+            enc_padding_mask, combined_mask, dec_padding_mask
+        )
 
-            # with sampling
-            predicted_id = tf.cast(tf.random.categorical(tf.squeeze(predictions, 0), num_samples=1)[-1,0].numpy() , tf.int32)
-            
-            # append the predicted token to the output
-            output.append(predicted_id)
-        
-            # stop generation if the token coincides with the end-of-verse token
-            if predicted_id == eov: break
-        
-            # otherwise the token is appended both to the new decoder input
-            decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)
-        
-        return output, attention_weights
+        # the higher the temperature, the more original (or crazy) is the text
+        predictions = logits[: ,:, :]
+
+        # with beam search
+        predictions = tf.exp(predictions) / tf.reduce_sum(tf.exp(predictions)) # softmax
+        predicted_sequence = beam_search_decoder(tensor=predictions, beam_width=5, verbose=False)[0][0]
+
+        return predicted_sequence, attention_weights
 
 
     ############################################################################
@@ -718,4 +695,5 @@ def beam_search_decoder(tensor, beam_width:int=5, verbose:bool=True):
     if verbose:
         print('\n', type(beams))
         print(beams)
+
     return beams
