@@ -379,39 +379,35 @@ class Generator():
         # add the batch dimension for compatibility
         encoder_input = tf.expand_dims(input_list, 0)
         decoder_input = tf.expand_dims(input_list, 0)
-        
+
+        beams, attention_weights = beam_search_decoder(encoder_input, decoder_input, max_len, beam_width=5, verbose=True)
+
         # the final output of the evaluation (initially, this is an empty list)
-        output = []
-        
+        # output = []
+
         # we repeat the process to get the entire verse (end-of-verse token is predicted)
-        for i in range(max_len):
-            enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)  
-            logits, attention_weights = self.model(
-                encoder_input, decoder_input, False,
-                enc_padding_mask, combined_mask, dec_padding_mask
-            )
+        # for i in range(max_len):
+        #     enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
+        #     logits, attention_weights = self.model(
+        #         encoder_input, decoder_input, False,
+        #         enc_padding_mask, combined_mask, dec_padding_mask
+        #     )
+        #
+        #     # the higher the temperature, the more original (or crazy) is the text
+        #     predictions = logits[: ,:, :]
+        #     predictions /= temperature
+        #     predicted_id = tf.cast(tf.random.categorical(tf.squeeze(predictions, 0), num_samples=1)[-1,0].numpy() , tf.int32)
+        #
+        #     # append the predicted token to the output
+        #     output.append(predicted_id)
+        #
+        #     # stop generation if the token coincides with the end-of-verse token
+        #     if predicted_id == eov: break
+        #
+        #     # otherwise the token is appended both to the new decoder input
+        #     decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)
         
-            # the higher the temperature, the more original (or crazy) is the text
-            predictions = logits[: ,:, :]
-            predictions /= temperature
-
-            # with beam search
-            # predictions = tf.exp(predictions) / tf.reduce_sum(tf.exp(predictions), axis) # softmax
-            # predicted_id = tf.cast(beam_search_decoder(tensor=predictions, beam_width=5, verbose=True), tf.int32)
-
-            # with sampling
-            predicted_id = tf.cast(tf.random.categorical(tf.squeeze(predictions, 0), num_samples=1)[-1,0].numpy() , tf.int32)
-            
-            # append the predicted token to the output
-            output.append(predicted_id)
-        
-            # stop generation if the token coincides with the end-of-verse token
-            if predicted_id == eov: break
-        
-            # otherwise the token is appended both to the new decoder input
-            decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)
-        
-        return output, attention_weights
+        return beams[0][0], attention_weights
 
 
     ############################################################################
@@ -703,19 +699,57 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 ######################          BEAM SEARCH          #######################
 ############################################################################
 
-def beam_search_decoder(tensor, beam_width:int=5, verbose:bool=True):
-    data = tf.squeeze(tensor).numpy()
-    beams = [[list(), 0.0]]
-    for row in data:
-        candidates = list()
-        for seq, score in beams:
-            for token, probability in enumerate(row):
-                candidate = [seq + [token], score - np.log(probability)]
-                candidates.append(candidate)
-        candidates = sorted(candidates, key=lambda x: x[1])
-        beams = candidates[:beam_width]
-
+def beam_search_decoder(encoder_input, decoder_input, max_len, beam_width=5, verbose=True):
+    tokens, probabilities, attention_weights = _beam_search_decoding_step(encoder_input, decoder_input, beam_width)
+    beams = [[[token], 0] for token in tokens]
     if verbose:
-        print('\n', type(beams))
         print(beams)
-    return beams
+
+    for i in range(max_len-1):
+        n_ended = 0
+        candidates = []
+        is_all_ended = True
+
+        for j, [beam, prob] in enumerate(beams):
+            if beam[-1] != self.dataloader.eot:
+                is_all_ended = False
+                tokens_temp, probabilities_temp, attention_weights = _beam_search_decoding_step(
+                    encoder_input,
+                    # If there are dimensions or type problems, check here. TODO: remove this comment
+                    tf.concat([decoder_input, [tf.cast(beam, tf.int32)]], axis=-1),
+                    beam_width)
+                for token, prob_temp in zip(tokens_temp, probabilities_temp):
+                    candidates.append([beam + [token], prob + prob_temp])
+            else:
+                n_ended += 1
+
+        if is_all_ended:
+            break
+        best_probs = np.argpartition(candidates[:,1], -(beam_width-n_ended))[-(beam_width-n_ended):]
+        counter = 0
+        for j, [beam, _] in enumerate(beams):
+            if beam[-1] != self.dataloader.eot:
+                beams[j] = candidates[best_probs[counter]]
+                counter += 1
+
+    return beams, attention_weights
+
+
+def _beam_search_decoding_step(encoder_input, decoder_input, beam_width):
+    enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
+    logits, attention_weights = self.model(
+        encoder_input, decoder_input, False,
+        enc_padding_mask, combined_mask, dec_padding_mask
+    )
+
+    predictions = logits[:, :, :]
+    predictions = tf.nn.softmax(predictions, axis=-1)  # softmax
+    if verbose:
+        print(predictions.shape)
+        print(predictions)
+    # select last token's logits
+    predictions = tf.squeeze(predictions, 0)[-1, :].numpy()
+    predictions = np.log(predictions)
+    tokens = np.argpartition(predictions, -beam_width)[-beam_width:]
+    probabilities = predictions[tokens]
+    return tokens, probabilities, attention_weights
