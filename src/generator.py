@@ -376,14 +376,12 @@ class Generator():
                                                             decoder_input,
                                                             max_len,
                                                             beam_width=5,
-                                                            verbose=True)
+                                                            verbose=False)
 
-        # print(beams)
+        predicted_sequence = beams[0][0]
 
-        # predicted_sequence = beams[0][0]
-        # attention_weights = attention_weights[0][0]
-
-        # print(predicted_sequence)
+        # print("\nBEAMS:", beams)
+        # print("PREDICTED:", predicted_sequence)
 
         return predicted_sequence, attention_weights
 
@@ -411,7 +409,8 @@ class Generator():
                         encoder_input,
                         # If there are dimensions or type problems, check here. TODO: remove this comment
                         tf.concat([decoder_input, [tf.cast(beam, tf.int32)]], axis=-1),
-                        beam_width)
+                        beam_width,
+                        verbose = verbose)
                     for token, prob_temp in zip(tokens_temp, probabilities_temp):
                         candidates.append([beam + [token], prob + prob_temp])
                 else:
@@ -420,7 +419,7 @@ class Generator():
             if is_all_ended:
                 break
 
-            best_probs = np.argpartition(candidates[:,1], -(beam_width-n_ended))[-(beam_width-n_ended):]
+            best_probs = np.argpartition(np.array(candidates, dtype=object)[:,1], -(beam_width-n_ended))[-(beam_width-n_ended):]
             counter = 0
             for j, [beam, _] in enumerate(beams):
                 if beam[-1] != self.dataloader.eot:
@@ -430,7 +429,7 @@ class Generator():
         return beams, attention_weights
 
 
-    def _beam_search_decoding_step(self, encoder_input, decoder_input, beam_width:int, verbose:bool=True):
+    def _beam_search_decoding_step(self, encoder_input, decoder_input, beam_width:int, verbose:bool=False):
         
         enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
         logits, attention_weights = self.model(
