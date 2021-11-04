@@ -4,12 +4,18 @@ import numpy as np
 def clear_text(text):
   if text[0] == " ":
     text = text[1:]
-  text = text.replace('  ', ' ')
-  text = text.replace('<s>', ' ')
-  text = text.replace('<v>', '')
-  text = text.replace('<t>','\n')
-  text = text.replace('</v>', '\n')
+
   text = text.replace('~', ' ')
+  text = text.replace('<s>', ' ')
+
+  text = text.replace('  ', ' ')
+
+  text = text.replace('<v>', '')
+  text = text.replace('</v>', '\n')
+
+  text = text.replace('<t>','\n')
+  text = text.replace('</t>','\n')
+  
   return text
 
 # Flattens list

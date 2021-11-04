@@ -327,9 +327,7 @@ class Generator():
     def _generate(self, start, max_len:int=100, n_verses:int=100, temperature:int=1.0):
 
         '''generates 'n_verses' verses, starting from input 'start', where every 
-        verse has at most 'max_len' tokens. The generation probability is 
-        influenced by the temperature: the higher the temperature, the more 
-        original (or crazy) is the text.'''
+        verse has at most 'max_len' tokens.'''
 
         # variables initialization
         input_sequence = start.copy()
@@ -346,6 +344,7 @@ class Generator():
 
                 # generate one verse
                 generated_tercet, _ = self._generate_tercet(input_sequence,
+                                                            max_len = max_len,
                                                             temperature=temperature)
 
                 # print('\n', len(generated_tercet))
@@ -358,39 +357,101 @@ class Generator():
                 # append the generated verse to the output
                 generated += generated_tercet
                 
-        except:
+        except e:
+            print('\nERROR:\n', e)
             return generated
         
         return generated
 
-    def _generate_tercet(self, input_list, temperature:int=1.0):
+    def _generate_tercet(self, input_sequence, max_len:int, temperature:int=1.0):
 
-        '''generate tokens, starting from 'input_list', until 'eov' token
-        is generated or 'max_len' tokens limit has been reached. The generation
-        probability is influenced by the temperature: the higher the temperature,
-        the more original (or crazy) is the text.'''
+        '''generate tokens, starting from 'input_sequence' and using the
+        beam search for tokens selection.'''
     
         # add the batch dimension for compatibility
-        encoder_input = tf.expand_dims(input_list, 0)
-        decoder_input = tf.expand_dims(input_list, 0)
+        encoder_input = tf.expand_dims(input_sequence, 0)
+        decoder_input = tf.expand_dims(input_sequence, 0)
         
-        #TODO: TEST BEAM SEARCH
-        enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
+        beams, attention_weights = self.beam_search_decoder(encoder_input,
+                                                            decoder_input,
+                                                            max_len,
+                                                            beam_width=5,
+                                                            verbose=True)
 
+        # print(beams)
+
+        # predicted_sequence = beams[0][0]
+        # attention_weights = attention_weights[0][0]
+
+        # print(predicted_sequence)
+
+        return predicted_sequence, attention_weights
+
+    ############################################################################
+    ######################          BEAM SEARCH          #######################
+    ############################################################################
+
+    def beam_search_decoder(self, encoder_input, decoder_input, max_len:int, beam_width:int=5, verbose:bool=True):
+
+        tokens, probabilities, attention_weights = self._beam_search_decoding_step(encoder_input, decoder_input, beam_width)
+        beams = [[[token], 0] for token in tokens]
+
+        if verbose:
+            print(beams)
+
+        for i in range(max_len-1):
+            n_ended = 0
+            candidates = []
+            is_all_ended = True
+
+            for j, [beam, prob] in enumerate(beams):
+                if beam[-1] != self.dataloader.eot:
+                    is_all_ended = False
+                    tokens_temp, probabilities_temp, attention_weights = self._beam_search_decoding_step(
+                        encoder_input,
+                        # If there are dimensions or type problems, check here. TODO: remove this comment
+                        tf.concat([decoder_input, [tf.cast(beam, tf.int32)]], axis=-1),
+                        beam_width)
+                    for token, prob_temp in zip(tokens_temp, probabilities_temp):
+                        candidates.append([beam + [token], prob + prob_temp])
+                else:
+                    n_ended += 1
+
+            if is_all_ended:
+                break
+
+            best_probs = np.argpartition(candidates[:,1], -(beam_width-n_ended))[-(beam_width-n_ended):]
+            counter = 0
+            for j, [beam, _] in enumerate(beams):
+                if beam[-1] != self.dataloader.eot:
+                    beams[j] = candidates[best_probs[counter]]
+                    counter += 1
+
+        return beams, attention_weights
+
+
+    def _beam_search_decoding_step(self, encoder_input, decoder_input, beam_width:int, verbose:bool=True):
+        
+        enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
         logits, attention_weights = self.model(
             encoder_input, decoder_input, False,
             enc_padding_mask, combined_mask, dec_padding_mask
         )
 
-        # the higher the temperature, the more original (or crazy) is the text
-        predictions = logits[: ,:, :]
+        predictions = logits[:, :, :]
+        predictions = tf.nn.softmax(predictions, axis=-1)  # softmax
 
-        # with beam search
-        predictions = tf.exp(predictions) / tf.reduce_sum(tf.exp(predictions)) # softmax
-        predicted_sequence = beam_search(tensor=predictions, beam_width=5, verbose=False)[0][0]
+        if verbose:
+            print(predictions.shape)
+            print(predictions)
 
-        return predicted_sequence, attention_weights
+        # select last token's logits
+        predictions = tf.squeeze(predictions, 0)[-1, :].numpy()
+        predictions = np.log(predictions)
+        tokens = np.argpartition(predictions, -beam_width)[-beam_width:]
+        probabilities = predictions[tokens]
 
+        return tokens, probabilities, attention_weights
 
     ############################################################################
     ######################          GENERATOR INFO            ##################
@@ -676,25 +737,3 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     
     return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
-
-############################################################################
-######################          BEAM SEARCH          #######################
-############################################################################
-
-def beam_search(tensor, beam_width:int=5, verbose:bool=True):
-    data = tf.squeeze(tensor).numpy()
-    beams = [[list(), 0.0]]
-    for row in data:
-        candidates = list()
-        for seq, score in beams:
-            for token, probability in enumerate(row):
-                candidate = [seq + [token], score - np.log(probability)]
-                candidates.append(candidate)
-        candidates = sorted(candidates, key=lambda x: x[1])
-        beams = candidates[:beam_width]
-
-    if verbose:
-        print('\n', type(beams))
-        print(beams)
-
-    return beams

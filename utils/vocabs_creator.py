@@ -11,7 +11,7 @@ epochs_comedy = 20
 verbose = False
 
 log = False
-originals_path = '../data/original'
+hyphenated_path = '../data/hyphenated/'
 in_path = '../data/tokenized/'
 out_path = '../data/vocabs/'
 
@@ -21,7 +21,7 @@ if not os.path.exists(out_path):
 
 print("GENERATING VOCABULARIES:")
 for tokenization in ['base', 'spaces']:
-  for comedy_name in os.listdir(originals_path):
+  for comedy_name in os.listdir(hyphenated_path):
     if not ("_is_" in comedy_name and tokenization == 'base'):
 
       comedy_name = comedy_name.replace(".txt","")

@@ -114,7 +114,7 @@ class DataLoader():
             key=len)
 
         # initialize groups
-        special_tokens = []
+        special_tokens = ['<v>', '</v>', '<t>', '</t>']
         punctuation = []
         non_ending_sylls = []
         ending_sylls = []
@@ -122,7 +122,8 @@ class DataLoader():
         for token in tokens:
             # NON-SYLLABLES
             if '<' in token:
-                special_tokens.append(token)
+                continue
+                # special_tokens.append(token)
             elif len(token) == 1 and not token.isalpha():
                 punctuation.append(token)
             # SYLLABLES
@@ -134,7 +135,7 @@ class DataLoader():
                         ending_sylls.append(token)
 
         # sort groups
-        special_tokens = sorted(special_tokens, key=len)
+        # special_tokens = sorted(special_tokens, key=len)
         punctuation = sorted(punctuation, key=ord)
         non_ending_sylls = sorted(non_ending_sylls, key=len)
         ending_sylls = sorted(ending_sylls, key=len)
@@ -160,6 +161,12 @@ class DataLoader():
         # Creating a mapping from unique characters to indices
         self.str2idx = {u:i for i, u in enumerate(self.vocab)}
         self.idx2str = np.array(self.vocab)
+
+        self.padding =  self.str2idx['']
+        self.sov = self.str2idx['<v>']
+        self.eov = self.str2idx['</v>']
+        self.sot = self.str2idx['<t>']
+        self.eot = self.str2idx['</t>']
 
     # Returns set of syllales from input list of verses
     def _verses_to_tokens_set(self, verses_list, verbose:bool=False):

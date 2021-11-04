@@ -6,8 +6,8 @@ runtime = 'slurm'
 parser = Parser(runtime)
 
 if runtime == 'colab':
-  comedy_name  = 'comedy_np_is_es'
-  tokenization = 'base'
+  comedy_name  = 'comedy_11_np_is_es'
+  tokenization = 'spaces'
 else:
   comedy_name  = parser.comedy_name
   tokenization = parser.tokenization
