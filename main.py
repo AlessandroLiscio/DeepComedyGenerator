@@ -2,7 +2,7 @@
 
 from src.parser import Parser
 
-runtime = 'local'
+runtime = 'slurm'
 parser = Parser(runtime)
 
 if runtime == 'colab':
@@ -95,7 +95,7 @@ if not runtime == 'colab': # let's not waste colab precious gpu time
   temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 
   for ckpt_production in range(0, epochs_production+1, checkpoint):
-    for ckpt_comedy in range(50, epochs_comedy+1, checkpoint):
+    for ckpt_comedy in range(0, epochs_comedy+1, checkpoint):
       
       generator.epochs['production'] = min(ckpt_production, epochs_production)
       generator.epochs['comedy'] = min(ckpt_comedy, epochs_comedy)

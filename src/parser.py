@@ -39,7 +39,7 @@ class Parser(ArgumentParser):
 
         ## TRAINING INFO
         self.epochs_production = 0
-        self.epochs_comedy     = 50
+        self.epochs_comedy     = 100
         self.checkpoint        = 10
 
         ## VERBOSE

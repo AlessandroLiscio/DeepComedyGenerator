@@ -294,9 +294,10 @@ class Generator():
 
         # generate a cantica for each temperature
         generations = []
+
         for temp in temperatures:
 
-            # print(f"- temperature {temp}... ", end="")
+            print(f"- temperature {temp}... ", end="")
 
             # start timer
             t_start = time.time()
@@ -315,7 +316,7 @@ class Generator():
 
             # stop timer
             t_gen = round(time.time() - t_start)
-            # print(f"completed ({int(t_gen/3600)}h {int(t_gen/60%60)}m {int(t_gen%60)}s)")
+            print(f"completed ({int(t_gen/3600)}h {int(t_gen/60%60)}m {int(t_gen%60)}s)")
 
         self.log["generations"] = {}
         for i, temp in enumerate(temperatures):
@@ -338,18 +339,18 @@ class Generator():
             for _ in range(int(n_verses/3)+1):
 
                 # pad the input list to reach the max_len
-                input_list = list(
+                input_sequence = list(
                     tf.keras.preprocessing.sequence.pad_sequences(
                             [input_sequence],
                             maxlen=max_len)[0])
 
                 # generate one verse
-                generated_tercet, _ = self._generate_tercet(input_list,
-                                                        temperature=temperature)
+                generated_tercet, _ = self._generate_tercet(input_sequence,
+                                                            temperature=temperature)
 
-                print('\n', len(generated_tercet))
-                print(generated_tercet)
-                print(clear_text(ints_to_text(generated_tercet, self.dataloader.idx2str)))
+                # print('\n', len(generated_tercet))
+                # print(generated_tercet)
+                # print(clear_text(ints_to_text(generated_tercet, self.dataloader.idx2str)))
                 
                 # append the generated verse to the input sequence
                 input_sequence = generated_tercet
@@ -386,7 +387,7 @@ class Generator():
 
         # with beam search
         predictions = tf.exp(predictions) / tf.reduce_sum(tf.exp(predictions)) # softmax
-        predicted_sequence = beam_search_decoder(tensor=predictions, beam_width=5, verbose=False)[0][0]
+        predicted_sequence = beam_search(tensor=predictions, beam_width=5, verbose=False)[0][0]
 
         return predicted_sequence, attention_weights
 
@@ -680,7 +681,7 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 ######################          BEAM SEARCH          #######################
 ############################################################################
 
-def beam_search_decoder(tensor, beam_width:int=5, verbose:bool=True):
+def beam_search(tensor, beam_width:int=5, verbose:bool=True):
     data = tf.squeeze(tensor).numpy()
     beams = [[list(), 0.0]]
     for row in data:

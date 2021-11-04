@@ -61,13 +61,13 @@ start = dataloader.get_comedy_start()
 print("start:\n", np.array(start))
 
 # Choose the list of temperatures (one generation for each temperature)
-# temperatures = np.round(np.linspace(0.5, 1.5, num=5), 2)
+temperatures = np.round(np.linspace(0.5, 1.5, num=5), 2)
 # temperatures = np.round(np.linspace(0.5, 1.0, num=3), 2)
-temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
+# temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 # temperatures = np.round(np.linspace(0.5, 1.5, num=11), 1)
 
 for ckpt_production in range(0, epochs_production+1, checkpoint):
-  for ckpt_comedy in range(50, epochs_comedy+1, checkpoint):
+  for ckpt_comedy in range(0, epochs_comedy+1, checkpoint):
     
     generator.epochs['production'] = min(ckpt_production, epochs_production)
     generator.epochs['comedy'] = min(ckpt_comedy, epochs_comedy)
