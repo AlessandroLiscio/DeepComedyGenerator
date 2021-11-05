@@ -304,9 +304,9 @@ class Generator():
 
             # generate cantica
             generated = self._generate(start = start,
-                                                max_len = self.dataloader.tercet_max_len,
-                                                n_verses = n_verses,
-                                                temperature = temp)
+                                        max_len = self.dataloader.tercet_max_len,
+                                        n_verses = n_verses,
+                                        temperature = temp)
 
             # decode the generated cantica and remove special tokens
             generated = clear_text(ints_to_text(generated, self.dataloader.idx2str))
@@ -374,9 +374,9 @@ class Generator():
         
         beams, attention_weights = self.beam_search_decoder(encoder_input,
                                                             decoder_input,
-                                                            max_len,
+                                                            max_len = max_len,
                                                             beam_width=5,
-                                                            verbose=False)
+                                                            verbose=True)
 
         predicted_sequence = beams[0][0]
 
@@ -389,7 +389,7 @@ class Generator():
     ######################          BEAM SEARCH          #######################
     ############################################################################
 
-    def beam_search_decoder(self, encoder_input, decoder_input, max_len:int, beam_width:int=5, verbose:bool=True):
+    def beam_search_decoder(self, encoder_input, decoder_input, max_len:int, beam_width:int=5, verbose:bool=False):
 
         tokens, probabilities, attention_weights = self._beam_search_decoding_step(encoder_input, decoder_input, beam_width)
         beams = [[[token], 0] for token in tokens]
@@ -508,7 +508,7 @@ class Generator():
         self.log["trainings"][dataset_name]["epochs"] = self.epochs[dataset_name]
         self.log["trainings"][dataset_name]["time"] += t
 
-        self.log["trainings"][dataset_name]["loss_history"].append("{:.4f}".format(self.train_accuracy.result()))
+        self.log["trainings"][dataset_name]["loss_history"].append("{:.4f}".format(self.train_loss.result()))
         self.log["trainings"][dataset_name]["acc_history"].append("{:.4f}".format(self.train_accuracy.result()))
 
     def get_dataloader_name(self):
