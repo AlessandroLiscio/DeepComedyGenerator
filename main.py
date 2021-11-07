@@ -6,8 +6,8 @@ runtime = 'local'
 parser = Parser(runtime)
 
 if runtime == 'colab':
-  comedy_name  = 'comedy_np_is_es'
-  tokenization = 'base'
+  comedy_name  = 'comedy_11_np_is_es'
+  tokenization = 'spaces'
 else:
   comedy_name  = parser.comedy_name
   tokenization = parser.tokenization
@@ -63,7 +63,7 @@ else:
                           verbose = verbose)
   dataloader.save(out_path)
 
-# dataloader.print_comedy_samples(1, text=True, ints=False)
+dataloader.print_comedy_samples(1, text=True, ints=True)
 
 ############################ GENERATOR ############################
 
@@ -91,7 +91,8 @@ if not runtime == 'colab': # let's not waste colab precious gpu time
   start = dataloader.get_comedy_start()
 
   # Choose the list of temperatures (one generation for each temperature)
-  temperatures = np.round(np.linspace(0.5, 1.5, num=5), 2)
+  # temperatures = np.round(np.linspace(0.5, 1.5, num=5), 2)
+  temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 
   for ckpt_production in range(0, epochs_production+1, checkpoint):
     for ckpt_comedy in range(0, epochs_comedy+1, checkpoint):

@@ -11,7 +11,11 @@ epochs_comedy = 20
 verbose = False
 
 log = False
+<<<<<<< HEAD
 hyphenated_path = '../data/hyphenated'
+=======
+hyphenated_path = '../data/hyphenated/'
+>>>>>>> beam_search
 in_path = '../data/tokenized/'
 out_path = '../data/vocabs/'
 
