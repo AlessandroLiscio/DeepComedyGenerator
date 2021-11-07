@@ -379,9 +379,6 @@ class Generator():
 
         predicted_sequence = beams[0][0]
 
-        # print("\nBEAMS:", beams)
-        # print("PREDICTED:", predicted_sequence)
-
         return predicted_sequence, attention_weights
 
     ############################################################################
@@ -417,7 +414,6 @@ class Generator():
         return sorted(ended, reverse=True, key=lambda x: x[1]), attention_weights
 
     def _beam_search_decoding_step(self, encoder_input, decoder_input, beam_width):
-        #print(decoder_input)
         enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
         logits, attention_weights = self.model(
             encoder_input, decoder_input, False,
@@ -426,11 +422,6 @@ class Generator():
         predictions = logits[:, :, :]
         predictions = tf.nn.softmax(predictions, axis=-1)  # softmax
         np.set_printoptions(precision=3, threshold=sys.maxsize)
-        #print(tf.math.argmax(predictions, axis=-1).numpy())
-        #temp = tf.squeeze(tf.math.reduce_max(predictions, axis=-1)).numpy()
-        #np.set_printoptions(precision=3, threshold=sys.maxsize)
-        #print(temp.shape)
-        #print(temp)
         # select last token's logits
         predictions = tf.squeeze(predictions, 0)[-1, :].numpy()
         predictions = np.log(predictions)
