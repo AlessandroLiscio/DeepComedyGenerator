@@ -484,7 +484,7 @@ class Generator():
         self.log["trainings"][dataset_name]["epochs"] = self.epochs[dataset_name]
         self.log["trainings"][dataset_name]["time"] += t
 
-        self.log["trainings"][dataset_name]["loss_history"].append("{:.4f}".format(self.train_accuracy.result()))
+        self.log["trainings"][dataset_name]["loss_history"].append("{:.4f}".format(self.train_loss.result()))
         self.log["trainings"][dataset_name]["acc_history"].append("{:.4f}".format(self.train_accuracy.result()))
 
     def get_dataloader_name(self):
