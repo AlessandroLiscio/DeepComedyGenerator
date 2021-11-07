@@ -380,34 +380,32 @@ class Generator():
         encoder_input = tf.expand_dims(input_list, 0)
         decoder_input = tf.expand_dims(input_list, 0)
 
-        beams, attention_weights = beam_search_decoder(encoder_input, decoder_input, max_len, beam_width=5, verbose=True)
-
         # the final output of the evaluation (initially, this is an empty list)
-        # output = []
+        output = []
 
         # we repeat the process to get the entire verse (end-of-verse token is predicted)
-        # for i in range(max_len):
-        #     enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
-        #     logits, attention_weights = self.model(
-        #         encoder_input, decoder_input, False,
-        #         enc_padding_mask, combined_mask, dec_padding_mask
-        #     )
-        #
-        #     # the higher the temperature, the more original (or crazy) is the text
-        #     predictions = logits[: ,:, :]
-        #     predictions /= temperature
-        #     predicted_id = tf.cast(tf.random.categorical(tf.squeeze(predictions, 0), num_samples=1)[-1,0].numpy() , tf.int32)
-        #
-        #     # append the predicted token to the output
-        #     output.append(predicted_id)
-        #
-        #     # stop generation if the token coincides with the end-of-verse token
-        #     if predicted_id == eov: break
-        #
-        #     # otherwise the token is appended both to the new decoder input
-        #     decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)
+        for i in range(max_len):
+            enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
+            logits, attention_weights = self.model(
+                encoder_input, decoder_input, False,
+                enc_padding_mask, combined_mask, dec_padding_mask
+            )
         
-        return beams[0][0], attention_weights
+            # the higher the temperature, the more original (or crazy) is the text
+            predictions = logits[: ,:, :]
+            predictions /= temperature
+            predicted_id = tf.cast(tf.random.categorical(tf.squeeze(predictions, 0), num_samples=1)[-1,0].numpy() , tf.int32)
+        
+            # append the predicted token to the output
+            output.append(predicted_id)
+        
+            # stop generation if the token coincides with the end-of-verse token
+            if predicted_id == eov: break
+        
+            # otherwise the token is appended both to the new decoder input
+            decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)
+        
+        return output, attention_weights
 
 
     ############################################################################
