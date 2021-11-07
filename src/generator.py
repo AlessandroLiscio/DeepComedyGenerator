@@ -77,7 +77,7 @@ class Generator():
 
     ############################################################################
     ######################            TRAINING            ######################
-    ############################################################################      
+    ############################################################################
 
     def train_model(self, checkpoint: int = None, out_path: str = None):
         '''train model on all the datasets'''
@@ -299,6 +299,10 @@ class Generator():
             t_start = time.time()
 
             # generate cantica
+            generated = self._generate(start = start,
+                                        max_len = self.dataloader.tercet_max_len,
+                                        n_verses = n_verses,
+                                        temperature = temp)
             generated = self._generate(start=start,
                                        max_len=self.dataloader.tercet_max_len,
                                        n_verses=n_verses,
@@ -384,7 +388,8 @@ class Generator():
     ######################          BEAM SEARCH          #######################
     ############################################################################
 
-    def beam_search_decoder(self, encoder_input, decoder_input, max_len, beam_width=5, verbose=True):
+    def beam_search_decoder(self, encoder_input, decoder_input, max_len:int, beam_width:int=5, verbose:bool=False):
+
         tokens, probabilities, attention_weights = self._beam_search_decoding_step(encoder_input, decoder_input, beam_width)
         beams = [[[token], prob] for (token, prob) in zip(tokens, probabilities)]
         ended = []

@@ -45,6 +45,8 @@ dataloader = DataLoader(from_pickle = out_path,
                         comedy_name = comedy_name,
                         tokenization = tokenization)
 
+dataloader.print_comedy_samples(1, text=True, ints=True)
+
 generator = Generator(dataloader = dataloader,
                       encoders = encoders, 
                       decoders = decoders, 
