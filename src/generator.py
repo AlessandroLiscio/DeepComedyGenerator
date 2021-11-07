@@ -303,11 +303,16 @@ class Generator():
                                                 n_verses = n_verses,
                                                 temperature = temp)
 
-            # decode the generated cantica and remove special tokens
-            generated_string = clear_text(ints_to_text(generated_string, self.dataloader.idx2str))
+            try:
 
-            # append generated cantica to results
-            generations.append(generated_string)
+                # decode the generated cantica and remove special tokens
+                generated_string = clear_text(ints_to_text(generated_string, self.dataloader.idx2str))
+
+                # append generated cantica to results
+                generations.append(generated_string)
+
+            except:
+                generations.append("")
 
             # stop timer
             t_gen = round(time.time() - t_start)
@@ -326,13 +331,10 @@ class Generator():
         influenced by the temperature: the higher the temperature, the more 
         original (or crazy) is the text.'''
 
-        # end-of-verse
-        eov = self.dataloader.str2idx['</v>']
-
         # drop the first verse to keep a window of 3 verses
         def drop_first_verse(sequence):
             for i, token in enumerate(sequence):
-                if token == eov:
+                if token == self.dataloader.eov or token == self.dataloader.eot:
                     return sequence[i+1:]
 
         # variables initialization
@@ -352,7 +354,6 @@ class Generator():
 
                 # generate one verse
                 generated_verse, _ = self._generate_verse(input_list,
-                                                        eov = eov,
                                                         max_len = int(max_len/3),
                                                         temperature=temperature)
 
@@ -369,13 +370,13 @@ class Generator():
         
         return generated
 
-    def _generate_verse(self, input_list, eov, max_len:int=100, temperature:int=1.0):
+    def _generate_verse(self, input_list, max_len:int=100, temperature:int=1.0):
 
         '''generate tokens, starting from 'input_list', until 'eov' token
         is generated or 'max_len' tokens limit has been reached. The generation
         probability is influenced by the temperature: the higher the temperature,
         the more original (or crazy) is the text.'''
-    
+
         # add the batch dimension for compatibility
         encoder_input = tf.expand_dims(input_list, 0)
         decoder_input = tf.expand_dims(input_list, 0)
@@ -399,8 +400,8 @@ class Generator():
             # append the predicted token to the output
             output.append(predicted_id)
         
-            # stop generation if the token coincides with the end-of-verse token
-            if predicted_id == eov: break
+            # stop generation if the token coincides with the end-of-verse or end-of-tercet tokens
+            if predicted_id == self.dataloader.eov or predicted_id == self.dataloader.eot: break
         
             # otherwise the token is appended both to the new decoder input
             decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)
@@ -464,7 +465,7 @@ class Generator():
         self.log["trainings"][dataset_name]["epochs"] = self.epochs[dataset_name]
         self.log["trainings"][dataset_name]["time"] += t
 
-        self.log["trainings"][dataset_name]["loss_history"].append("{:.4f}".format(self.train_accuracy.result()))
+        self.log["trainings"][dataset_name]["loss_history"].append("{:.4f}".format(self.train_loss.result()))
         self.log["trainings"][dataset_name]["acc_history"].append("{:.4f}".format(self.train_accuracy.result()))
 
     def get_dataloader_name(self):

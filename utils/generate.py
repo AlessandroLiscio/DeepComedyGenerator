@@ -9,11 +9,11 @@ from src.dataloader import DataLoader
 ############################ SETUP ############################
 
 ## DATASET INFO
-comedy_name  = 'comedy_np_es'
-tokenization = 'base'
+comedy_name  = 'comedy_11_np_is_es'
+tokenization = 'spaces'
 
 ## PATHS
-in_path  = '../data/tokenized/'
+in_path  = '../data/hyphenated/'
 out_path = '../results/'
 
 ## MODEL PARAMETERS
@@ -44,6 +44,8 @@ if not os.path.exists(out_path):
 dataloader = DataLoader(from_pickle = out_path,
                         comedy_name = comedy_name,
                         tokenization = tokenization)
+
+dataloader.print_comedy_samples(1, text=True, ints=True)
 
 generator = Generator(dataloader = dataloader,
                       encoders = encoders, 

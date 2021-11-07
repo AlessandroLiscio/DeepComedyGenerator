@@ -9,6 +9,7 @@ def clear_text(text):
   text = text.replace('<v>', '')
   text = text.replace('<t>','\n')
   text = text.replace('</v>', '\n')
+  text = text.replace('</t>', '\n\n')
   text = text.replace('~', ' ')
   return text
 

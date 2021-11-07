@@ -3,7 +3,7 @@ import os
 import re
 
 # PATHS
-original_path = "../data/original/"
+original_path = "../data/hyphenated/"
 tokenized_path = "../data/tokenized/"
 
 # SPECIAL TOKENS 
@@ -40,10 +40,15 @@ for tokenization in ['base', 'spaces']:
                 # tokenize verses
                 for verse in text:
 
+                    if verse[0] == "|":
+                        verse = verse[1:]
+
                     # replace characters
                     if tokenization == 'base':
+                        
                         if "_es" in filename:
                             verse = verse[:-2]
+                            
                         verse = re.sub(r'([a-zA-Z0-9’]) ([a-zA-Z0-9’])', r'\g<1>~\g<2>', verse)
                         verse = verse.replace(' ', f'{sep} ')
 
@@ -53,14 +58,14 @@ for tokenization in ['base', 'spaces']:
                     verse = verse.replace('\n', '')
 
                     # add sov and eov tokens to verse
-                    verse = sov + verse + sep + eov
 
                     # manage tercets if needed
                     if 'comedy' in filename:
-                        if verse_count == 1:
-                            verse = sot + verse
-                        elif verse_count == 3:
-                            verse_count = 0    
+                        if verse_count == 3:
+                            verse = verse + sep + eot
+                            verse_count = 0
+                        else:
+                            verse = verse + sep + eov
                         verse_count += 1
 
                     # append verse to tokenized verses list
