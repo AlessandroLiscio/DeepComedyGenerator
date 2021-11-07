@@ -23,7 +23,7 @@ class Parser(ArgumentParser):
         if runtime == 'local':
             self.out_path  = "results/"
         elif runtime == 'slurm':
-            self.out_path  = '../../../../../public/alessandro.liscio/results/'
+            self.out_path  = '../../../../../public/liscio.alessandro/results/'
         elif runtime == 'colab':
             self.out_path = '/content/drive/MyDrive/DC-gen/results/'
 

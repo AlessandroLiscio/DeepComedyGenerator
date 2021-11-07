@@ -40,6 +40,9 @@ for tokenization in ['base', 'spaces']:
                 # tokenize verses
                 for verse in text:
 
+                    if verse[0] == "|":
+                        verse = verse[1:]
+
                     # replace characters
                     if tokenization == 'base':
                         

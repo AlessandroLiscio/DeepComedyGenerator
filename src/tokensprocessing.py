@@ -14,7 +14,7 @@ def clear_text(text):
   text = text.replace('</v>', '\n')
 
   text = text.replace('<t>','\n')
-  text = text.replace('</t>','\n')
+  text = text.replace('</t>','\n\n')
   
   return text
 

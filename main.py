@@ -2,7 +2,7 @@
 
 from src.parser import Parser
 
-runtime = 'slurm'
+runtime = 'local'
 parser = Parser(runtime)
 
 if runtime == 'colab':
@@ -63,7 +63,7 @@ else:
                           verbose = verbose)
   dataloader.save(out_path)
 
-# dataloader.print_comedy_samples(1, text=True, ints=False)
+dataloader.print_comedy_samples(1, text=True, ints=True)
 
 ############################ GENERATOR ############################
 
