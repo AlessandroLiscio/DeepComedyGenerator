@@ -220,7 +220,8 @@ class DataLoader():
                 dataset, self.original_lengths[dataset_name], self.tercet_max_len = self._split_input_target(
                     dataset_name = dataset_name,
                     dataset = dataset,
-                    inp_len = 3, tar_len = 4, skip = 1,
+                    # inp_len = 3, tar_len = 4, skip = 1,
+                    inp_len = 3, tar_len = 3, skip = 3,
                     repetitions = self.repetitions[dataset_name])
 
             self.datasets[dataset_name] = dataset
@@ -243,15 +244,17 @@ class DataLoader():
         dataset = split_tokens(dataset, self.separator)
         dataset = encode_tokens(dataset, self.str2idx)
         
-        #TODO: TRY NEW INPUT-TARGET COUPLES (3 INPUT - 3 TARGET)
-        # Split input-target
-        for i in range(0, len(dataset)-tar_len, skip):
-            inputs.append(flatten(dataset[i:i+inp_len]))
-            targets.append(flatten(dataset[i:i+tar_len]))
-
-        # for i in range(0, len(dataset)-2*inp_len, skip):
+        #TODO: TRAINING 3-4
+        # # Split input-target
+        # for i in range(0, len(dataset)-tar_len, skip):
         #     inputs.append(flatten(dataset[i:i+inp_len]))
-        #     targets.append(flatten(dataset[i+inp_len:i+2*inp_len]))
+        #     targets.append(flatten(dataset[i:i+tar_len]))
+
+        #TODO: TRAINING 3-3
+        # Split input-target
+        for i in range(0, len(dataset)-2*inp_len, skip):
+            inputs.append(flatten(dataset[i:i+inp_len]))
+            targets.append(flatten(dataset[i+inp_len:i+2*inp_len]))
             
         # Create repeated, shuffled and prefetched dataset
         real_size, dataset = self._create_dataset(inputs, targets, batch_size, repetitions)
@@ -363,7 +366,7 @@ class DataLoader():
 
         '''returns the list of the first three verses of the divine comedy'''
         
-        return self.files_dict[self._get_tokenized_filename(self.comedy_name)][:3]
+        return self.files_dict[self._get_tokenized_filename(self.comedy_name)][:4]
 
     ############################################################################
     #######################     FILES MANAGEMENT      ##########################

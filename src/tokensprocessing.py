@@ -12,15 +12,11 @@ def clear_text(text):
 
   text = text.replace('<v>', '')
   text = text.replace('</v>', '\n')
-<<<<<<< HEAD
-  text = text.replace('</t>', '\n\n')
-  text = text.replace('~', ' ')
-=======
 
-  text = text.replace('<t>','\n')
-  text = text.replace('</t>','\n\n')
+  text = text.replace('<t>', '\n')
+  text = text.replace('</t>', '\n\n')
   
->>>>>>> beam_search
+  text = text.replace('~', ' ')
   return text
 
 # Flattens list

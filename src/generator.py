@@ -273,7 +273,7 @@ class Generator():
     ######################          GENERATION              ####################
     ############################################################################
 
-    def generate_from_tercet(self, tercet, temperatures, n_verses: int = 100):
+    def generate_from_tercet(self, tercet, temperatures, n_verses: int = 100, generation_type:str='sampling'):
 
         '''generates 'n_verses' for each temperature, starting from
         input tercet, where every verse has at most 'tercet_max_len' tokens'''
@@ -302,30 +302,14 @@ class Generator():
             generated = self._generate(start = start,
                                         max_len = self.dataloader.tercet_max_len,
                                         n_verses = n_verses,
-                                        temperature = temp)
-            generated = self._generate(start=start,
-                                       max_len=self.dataloader.tercet_max_len,
-                                       n_verses=n_verses,
-                                       temperature=temp)
+                                        temperature = temp,
+                                        generation_type = generation_type)
 
-<<<<<<< HEAD
-            try:
-
-                # decode the generated cantica and remove special tokens
-                generated_string = clear_text(ints_to_text(generated_string, self.dataloader.idx2str))
-
-                # append generated cantica to results
-                generations.append(generated_string)
-
-            except:
-                generations.append("")
-=======
             # decode the generated cantica and remove special tokens
             generated = clear_text(ints_to_text(generated, self.dataloader.idx2str))
 
             # append generated cantica to results
             generations.append(generated)
->>>>>>> beam_search
 
             # stop timer
             t_gen = round(time.time() - t_start)
@@ -337,10 +321,9 @@ class Generator():
 
         return self.log["generations"]
 
-    def _generate(self, start, max_len: int = 100, n_verses: int = 100, temperature: int = 1.0):
+    def _generate(self, start, max_len: int = 100, n_verses: int = 100, temperature: int = 1.0, generation_type:str='sampling'):
 
         '''generates 'n_verses' verses, starting from input 'start', where every 
-<<<<<<< HEAD
         verse has at most 'max_len' tokens. The generation probability is 
         influenced by the temperature: the higher the temperature, the more 
         original (or crazy) is the text.'''
@@ -350,107 +333,112 @@ class Generator():
             for i, token in enumerate(sequence):
                 if token == self.dataloader.eov or token == self.dataloader.eot:
                     return sequence[i+1:]
-=======
-        verse has at most 'max_len' tokens.'''
->>>>>>> beam_search
 
         # variables initialization
         input_sequence = start.copy()
-        generated = []
+        output = []
+
+        if generation_type == 'beam_search':
+            n_verses = int(n_verses / 3) + 1
 
         try:
-            for _ in range(int(n_verses / 3) + 1):
+
+            for _ in range(n_verses):
+
                 # pad the input list to reach the max_len
                 input_sequence = list(
                     tf.keras.preprocessing.sequence.pad_sequences(
                         [input_sequence],
                         maxlen=max_len)[0])
 
+                #TODO: uncomment to debug
+                # print(clear_text(ints_to_text(input_sequence, self.dataloader.idx2str)))
+
                 # generate one verse
-<<<<<<< HEAD
-                generated_verse, _ = self._generate_verse(input_list,
-                                                        max_len = int(max_len/3),
-                                                        temperature=temperature)
-=======
-                generated_tercet, _ = self._generate_tercet(input_sequence,
-                                                            max_len=max_len,
-                                                            temperature=temperature)
->>>>>>> beam_search
+                generated, _ = self._generation_step(input_sequence,
+                                                        max_len = max_len,
+                                                        temperature = temperature,
+                                                        generation_type = generation_type)
 
-                # print('\n', len(generated_tercet))
-                # print(generated_tercet)
-                # print(clear_text(ints_to_text(generated_tercet, self.dataloader.idx2str)))
+                #TODO: uncomment to debug
+                # print('\n', len(generated))
+                # print(generated)
+                # print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
 
-                # append the generated verse to the input sequence
-                input_sequence = generated_tercet
+                #TODO: TRAINING 3-4
+                # # update the input sequence
+                # input_sequence += generated
+                # input_sequence = drop_first_verse(input_sequence)
+
+                #TODO: TRAINING 3-3
+                # update the input sequence
+                input_sequence = generated
 
                 # append the generated verse to the output
-                generated += generated_tercet
+                output += generated
 
         except e:
-            print('\nERROR:\n', e)
-            return generated
+            print("ERROR: ", e)
+            pass
 
-        return generated
+        return output
 
-<<<<<<< HEAD
-    def _generate_verse(self, input_list, max_len:int=100, temperature:int=1.0):
+    def _generation_step(self, input_sequence, max_len:int=100, temperature:int=1.0, generation_type:str='sampling'):
 
-        '''generate tokens, starting from 'input_list', until 'eov' token
-        is generated or 'max_len' tokens limit has been reached. The generation
-        probability is influenced by the temperature: the higher the temperature,
-        the more original (or crazy) is the text.'''
+        '''generate tokens, starting from 'input_sequence'.'''
 
-        # add the batch dimension for compatibility
-        encoder_input = tf.expand_dims(input_list, 0)
-        decoder_input = tf.expand_dims(input_list, 0)
-
-        # the final output of the evaluation (initially, this is an empty list)
-        output = []
-
-        # we repeat the process to get the entire verse (end-of-verse token is predicted)
-        for i in range(max_len):
-            enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
-            logits, attention_weights = self.model(
-                encoder_input, decoder_input, False,
-                enc_padding_mask, combined_mask, dec_padding_mask
-            )
-        
-            # the higher the temperature, the more original (or crazy) is the text
-            predictions = logits[: ,:, :]
-            predictions /= temperature
-            predicted_id = tf.cast(tf.random.categorical(tf.squeeze(predictions, 0), num_samples=1)[-1,0].numpy() , tf.int32)
-        
-            # append the predicted token to the output
-            output.append(predicted_id)
-        
-            # stop generation if the token coincides with the end-of-verse or end-of-tercet tokens
-            if predicted_id == self.dataloader.eov or predicted_id == self.dataloader.eot: break
-        
-            # otherwise the token is appended both to the new decoder input
-            decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)
-        
-        return output, attention_weights
-=======
-    def _generate_tercet(self, input_sequence, max_len: int, temperature: int = 1.0):
-
-        '''generate tokens, starting from 'input_sequence' and using the
-        beam search for tokens selection.'''
-
-        # add the batch dimension for compatibility
+         # add the batch dimension for compatibility
         encoder_input = tf.expand_dims(input_sequence, 0)
         decoder_input = tf.expand_dims(input_sequence, 0)
 
-        beams, attention_weights = self.beam_search_decoder(encoder_input,
-                                                            decoder_input,
-                                                            max_len,
-                                                            beam_width=5,
-                                                            verbose=True)
+        if generation_type == 'sampling':
+            
+            # the final output of the evaluation (initially, this is an empty list)
+            output = []
 
-        predicted_sequence = beams[0][0]
+            # we repeat the process to get the entire verse (end-of-verse token is predicted)
+            for i in range(int(max_len/3)):
 
-        return predicted_sequence, attention_weights
->>>>>>> beam_search
+                enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
+                logits, attention_weights = self.model(
+                    encoder_input, decoder_input, False,
+                    enc_padding_mask, combined_mask, dec_padding_mask
+                )
+            
+                # the higher the temperature, the more original (or crazy) is the text
+                predictions = logits[: ,:, :]
+                predictions /= temperature
+                predicted_id = tf.cast(tf.random.categorical(tf.squeeze(predictions, 0), num_samples=1)[-1,0].numpy() , tf.int32)
+            
+                # append the predicted token to the output
+                output.append(predicted_id.numpy())
+            
+                #TODO: 3-4 TRAINNG
+                # # stop generation if the token coincides with the end-of-verse or end-of-tercet tokens
+                # if predicted_id == self.dataloader.eov or predicted_id == self.dataloader.eot: break
+
+                #TODO: 3-3 TRAINNG
+                # stop generation if the token coincides with the end-of-verse or end-of-tercet tokens
+                if predicted_id == self.dataloader.eot: break
+            
+                # otherwise the token is appended both to the new decoder input
+                decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)
+            
+        elif generation_type == 'beam_search':
+            
+            beams, attention_weights = self.beam_search_decoder(encoder_input,
+                                                                decoder_input,
+                                                                max_len,
+                                                                beam_width=5,
+                                                                verbose=True)
+
+            output = beams[0][0]
+
+        else:
+            raise ValueError(f"Incorrect 'generation_type' parameter found.")
+            return None, None
+
+        return output, attention_weights
 
     ############################################################################
     ######################          BEAM SEARCH          #######################
@@ -464,11 +452,12 @@ class Generator():
         if verbose:
             print(f'\nbeams: {beams}')
 
-        for i in range(max_len - 1):
+        for i in range(max_len):
             candidates = []
 
             for j, [beam, prob] in enumerate(beams):
-                if beam[-1] != self.dataloader.eot:
+                if not beam[-1] == self.dataloader.eot:
+                # if not beam[-1] == self.dataloader.eov:
                     tokens_temp, probabilities_temp, attention_weights = self._beam_search_decoding_step(
                         encoder_input,
                         tf.concat([decoder_input, [tf.cast(beam, tf.int32)]], axis=-1),
@@ -634,11 +623,14 @@ class Generator():
 
                 # save plot as .png and show it
                 if out_path:
-                    plt.savefig(self.get_model_folder(out_path) + f"{dataset_name}_history.png")
+                    plt.savefig(self.get_model_folder(out_path) + f"history_{dataset_name}.png")
 
                 # if verbose, display plot
                 if verbose:
                     plt.show()
+
+                # clear figure
+                plt.clf()
 
     def generations_table(self, out_path: str = None, verbose: bool = True):
 
@@ -778,61 +770,4 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
         arg1 = tf.math.rsqrt(step)
         arg2 = step * (self.warmup_steps ** -1.5)
 
-<<<<<<< HEAD
-def beam_search_decoder(encoder_input, decoder_input, max_len, beam_width=5, verbose=True):
-    tokens, probabilities, attention_weights = _beam_search_decoding_step(encoder_input, decoder_input, beam_width)
-    beams = [[[token], 0] for token in tokens]
-    if verbose:
-        print(beams)
-
-    for i in range(max_len-1):
-        n_ended = 0
-        candidates = []
-        is_all_ended = True
-
-        for j, [beam, prob] in enumerate(beams):
-            if beam[-1] != self.dataloader.eot:
-                is_all_ended = False
-                tokens_temp, probabilities_temp, attention_weights = _beam_search_decoding_step(
-                    encoder_input,
-                    # If there are dimensions or type problems, check here. TODO: remove this comment
-                    tf.concat([decoder_input, [tf.cast(beam, tf.int32)]], axis=-1),
-                    beam_width)
-                for token, prob_temp in zip(tokens_temp, probabilities_temp):
-                    candidates.append([beam + [token], prob + prob_temp])
-            else:
-                n_ended += 1
-
-        if is_all_ended:
-            break
-        best_probs = np.argpartition(candidates[:,1], -(beam_width-n_ended))[-(beam_width-n_ended):]
-        counter = 0
-        for j, [beam, _] in enumerate(beams):
-            if beam[-1] != self.dataloader.eot:
-                beams[j] = candidates[best_probs[counter]]
-                counter += 1
-
-    return beams, attention_weights
-
-
-def _beam_search_decoding_step(encoder_input, decoder_input, beam_width):
-    enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
-    logits, attention_weights = self.model(
-        encoder_input, decoder_input, False,
-        enc_padding_mask, combined_mask, dec_padding_mask
-    )
-
-    predictions = logits[:, :, :]
-    predictions = tf.nn.softmax(predictions, axis=-1)  # softmax
-    if verbose:
-        print(predictions.shape)
-        print(predictions)
-    # select last token's logits
-    predictions = tf.squeeze(predictions, 0)[-1, :].numpy()
-    predictions = np.log(predictions)
-    tokens = np.argpartition(predictions, -beam_width)[-beam_width:]
-    probabilities = predictions[tokens]
-    return tokens, probabilities, attention_weights
-=======
         return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
->>>>>>> beam_search

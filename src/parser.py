@@ -10,6 +10,7 @@ class Parser(ArgumentParser):
         ## DATASET INFO
         self.comedy_name = None
         self.tokenization = None
+        self.generation = None
         
         ## IN_PATHS
         if runtime == 'local':
@@ -61,6 +62,7 @@ class Parser(ArgumentParser):
             ## DATASET INFO
             self.comedy_name  = inputs.comedy_name
             self.tokenization = inputs.tokenization
+            self.generation   = inputs.generation
 
             ## PATHS
             if inputs.in_path:  self.in_path  = inputs.in_path
@@ -89,6 +91,8 @@ class Parser(ArgumentParser):
                             help="divine comedy filename, without extension")
         self.add_argument("tokenization", type=str,
                             help="tokenization method. Must be either 'base' or 'spaces'")
+        self.add_argument("generation", type=str,
+                            help="generation method. Must be either 'sampling' or 'beam_search'")
 
         ## PATHS
         self.add_argument("--in_path", type=str,
