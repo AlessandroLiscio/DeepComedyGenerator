@@ -7,32 +7,42 @@ from src.dataloader import DataLoader
 
 ############################ SETUP ############################
 
-## LOCAL
-in_path  = 'data/tokenized/verses_sov/'
-out_path  = "results/"
+dataset = 'verses_sov' # ['tercets', 'tercets_sot', 'verses', 'verses_sov']
+stop = ['</v>']     # [ ['</t>'], ['</v>'], ['</v>', '</t>'] ]
 
-# ## SLURM
-# in_path  = 'data/tokenized/verses_sov/'
-# out_path  = '../../../../../public/liscio.alessandro/results/'
+# ## LOCAL
+# in_path  = f'data/tokenized/{dataset}/'
+# out_path  = "results/"
+
+## SLURM
+in_path  = f'data/tokenized/{dataset}/'
+out_path  = '../../../../../public/liscio.alessandro/results/'
 
 # ## COLAB
-# in_path = '/content/drive/MyDrive/DC-gen/data/tokenized/verses_sov/' 
+# in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{dataset}/' 
 # out_path = '/content/drive/MyDrive/DC-gen/results/'
 
 parser = Parser(in_path=in_path,
                 out_path=out_path,
-                comedy_name='comedy_11_np_is_es',
+
+                comedy_name='comedy_np_is_es',
                 tokenization='spaces', # ['base', 'spaces']
                 generation='sampling', # ['sampling', 'beam_search', None]
+
+                inp_len=1,
+                tar_len=2,
+
                 encoders=3,
                 decoders=3,
                 heads=2,
                 d_model=256,
                 dff=512,
                 dropout=0.2,
+
                 epochs_production=0,
                 epochs_comedy=70,
                 checkpoint=10,
+
                 verbose=True)
 
 ############################ ARGS ############################
@@ -45,6 +55,10 @@ out_path = parser.out_path
 comedy_name  = parser.comedy_name
 tokenization = parser.tokenization
 generation   = parser.generation
+
+## DATASET INFO
+inp_len = parser.inp_len
+tar_len = parser.tar_len
 
 ## MODEL PARAMETERS
 encoders = parser.encoders
@@ -77,14 +91,18 @@ if not os.path.exists(out_path):
 
 if os.path.isfile(f"{out_path}{comedy_name}_{tokenization}/dataloader.pkl"):
   dataloader = DataLoader(from_pickle = out_path,
-                        comedy_name = comedy_name,
-                        tokenization = tokenization,
-                        verbose = verbose)
+                          comedy_name = comedy_name,
+                          tokenization = tokenization,
+                          inp_len = inp_len,
+                          tar_len = tar_len,
+                          verbose = verbose)
   print(dataloader)
 else:
   dataloader = DataLoader(in_path=in_path,
                           comedy_name=comedy_name,
                           tokenization=tokenization,
+                          inp_len = inp_len,
+                          tar_len = tar_len,
                           repetitions_production=epochs_production,
                           repetitions_comedy=epochs_comedy,
                           verbose = verbose)
@@ -99,6 +117,7 @@ generator = Generator(dataloader = dataloader,
                       dff = dff,
                       heads = heads,
                       dropout = dropout,
+                      stop = stop,
                       verbose = verbose)
 
 # Print comedy samples

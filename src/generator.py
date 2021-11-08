@@ -24,6 +24,7 @@ class Generator():
                  encoders: int = 5, decoders: int = 5, heads: int = 4,
                  d_model: int = 256, dff: int = 512, dropout: float = 0.2,
                  epochs_production: int = 0, epochs_comedy: int = 0,
+                 stop = ['</v>'],
                  verbose: bool = True):
 
         # initialize epochs
@@ -50,6 +51,9 @@ class Generator():
         self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
         self.train_loss = tf.keras.metrics.Mean(name='train_loss')
         self.train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
+
+        # generation_step stop tokens
+        self.stop = [self.dataloader.str2idx[stopper] for stopper in stop]
 
         # generator info
         self._init_log()
@@ -350,10 +354,10 @@ class Generator():
         influenced by the temperature: the higher the temperature, the more 
         original (or crazy) is the text.'''
 
-        # drop the first verse to keep a window of 3 verses
-        def drop_first_verse(sequence):
+        # updates_input_sequence based on "stop" tokens
+        def update_input_sequence(sequence):
             for i, token in enumerate(sequence):
-                if token == self.dataloader.eov or token == self.dataloader.eot:
+                if token in self.stop:
                     return sequence[i+1:]
 
         # variables initialization
@@ -388,7 +392,7 @@ class Generator():
                 # update the input sequence
                 if self.dataloader.pred_size == 1:
                     input_sequence += generated
-                    input_sequence = drop_first_verse(input_sequence)
+                    input_sequence = update_input_sequence(input_sequence)
                 else:
                     input_sequence = generated
 
@@ -432,11 +436,8 @@ class Generator():
                 # append the predicted token to the output
                 output.append(predicted_id.numpy())
             
-                #TODO: CHOOSE BASED ON DATASET
-                # stop generation if the token coincides with the end-of-verse or end-of-tercet tokens
-                # if predicted_id == self.dataloader.eov or predicted_id == self.dataloader.eot: break
-                # if predicted_id == self.dataloader.eot: break
-                if predicted_id == self.dataloader.eov: break
+                # stop generation if the token coincides one of the "stop" tokens
+                if predicted_id in self.stop: break
             
                 # otherwise the token is appended both to the new decoder input
                 decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)
@@ -473,8 +474,7 @@ class Generator():
             candidates = []
 
             for j, [beam, prob] in enumerate(beams):
-                if not beam[-1] == self.dataloader.eot:
-                # if not beam[-1] == self.dataloader.eov:
+                if not beam[-1] in self.stop:
                     tokens_temp, probabilities_temp, attention_weights = self._beam_search_decoding_step(
                         encoder_input,
                         tf.concat([decoder_input, [tf.cast(beam, tf.int32)]], axis=-1),
