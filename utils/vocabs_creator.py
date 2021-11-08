@@ -11,11 +11,6 @@ epochs_comedy = 20
 verbose = False
 
 log = False
-<<<<<<< HEAD
-hyphenated_path = '../data/hyphenated'
-=======
-hyphenated_path = '../data/hyphenated/'
->>>>>>> beam_search
 in_path = '../data/tokenized/'
 out_path = '../data/vocabs/'
 
@@ -24,23 +19,30 @@ if not os.path.exists(out_path):
     print("CREATED: ", out_path)
 
 print("GENERATING VOCABULARIES:")
-for tokenization in ['base', 'spaces']:
-  for comedy_name in os.listdir(hyphenated_path):
-    if not ("_is_" in comedy_name and tokenization == 'base'):
+for comedy_name in os.listdir(in_path):
 
-      comedy_name = comedy_name.replace(".txt","")
+  comedy_name = comedy_name.replace("tokenized_","")
+  comedy_name = comedy_name.replace(".txt","")
 
-      dataloader = DataLoader(in_path=in_path,
-                              comedy_name=comedy_name,
-                              tokenization=tokenization,
-                              repetitions_production=epochs_production,
-                              repetitions_comedy=epochs_comedy,
-                              verbose = verbose)
+  if "spaces" in comedy_name:
+    tokenization = "spaces"
+    comedy_name = comedy_name.replace("_spaces","")
+  elif "base" in comedy_name:
+    tokenization = "base"
+    comedy_name = comedy_name.replace("_base","")
 
-      out_dict = dict(enumerate(dataloader.vocab))
-      if log:
-        out_dict['log'] = dataloader.vocab_info
-      
-      print(" - {:<30}{}".format(f"{comedy_name}_{tokenization}:", dataloader.vocab_info))
 
-      json.dump(out_dict, open(f'{out_path}vocab_{comedy_name}_{tokenization}.json', 'w'))
+  dataloader = DataLoader(in_path=in_path,
+                          comedy_name=comedy_name,
+                          tokenization=tokenization,
+                          repetitions_production=epochs_production,
+                          repetitions_comedy=epochs_comedy,
+                          verbose = verbose)
+
+  out_dict = dict(enumerate(dataloader.vocab))
+  if log:
+    out_dict['log'] = dataloader.vocab_info
+  
+  print(" - {:<30}{}".format(f"{comedy_name}_{tokenization}:", dataloader.vocab_info))
+
+  json.dump(out_dict, open(f'{out_path}vocab_{comedy_name}_{tokenization}.json', 'w'))

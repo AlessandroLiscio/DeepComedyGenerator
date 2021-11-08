@@ -32,8 +32,8 @@ class Parser(ArgumentParser):
         self.encoders = 5
         self.decoders = 5
         self.heads    = 4
-        self.d_model  = 256
-        self.dff      = 512
+        self.d_model  = 512 #256
+        self.dff      = 768 #512
         self.dropout  = 0.2
 
         assert self.d_model % self.heads == 0
@@ -42,6 +42,10 @@ class Parser(ArgumentParser):
         self.epochs_production = 0
         self.epochs_comedy     = 100
         self.checkpoint        = 10
+        #TODO: TRAINING 3-4-1
+        # self.pred_size       = 1
+        #TODO: TRAINING 3-6-3
+        self.pred_size         = 3
 
         ## VERBOSE
         self.verbose = True
@@ -80,6 +84,7 @@ class Parser(ArgumentParser):
             if inputs.epochs_production: self.epochs_production = inputs.epochs_production
             if inputs.epochs_comedy:     self.epochs_comedy     = inputs.epochs_comedy
             if inputs.checkpoint:        self.checkpoint        = inputs.checkpoint
+            if inputs.pred_size:         self.pred_size         = inputs.pred_size
 
             ## VERBOSE
             if inputs.verbose: self.verbose = inputs.verbose
@@ -121,6 +126,8 @@ class Parser(ArgumentParser):
                             help="number of training epochs on comedy dataset")
         self.add_argument("--checkpoint", type=int,
                             help="training checkpoint for saving model weights")
+        self.add_argument("--pred_size", type=int,
+                            help="number of verses the model needs to predict")
 
         ## VERBOSE
         self.add_argument("-v", "--verbose", action="store_true",

@@ -159,8 +159,9 @@ class Generator():
         the model tries to predict the next one. Then loss
         and accuracies are computed and gradients are applied'''
 
+        pred_size = self.dataloader.skip
+
         # split input and target
-        pred_size = 1
         tar_inp = tar[:, :-pred_size]
         tar_real = tar[:, pred_size:]
 
@@ -363,14 +364,14 @@ class Generator():
                 #TODO: uncomment to debug
                 # print('\n', len(generated))
                 # print(generated)
-                # print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
+                print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
 
-                #TODO: TRAINING 3-4
+                #TODO: TRAINING 3-4-1
                 # # update the input sequence
                 # input_sequence += generated
                 # input_sequence = drop_first_verse(input_sequence)
 
-                #TODO: TRAINING 3-3
+                #TODO: TRAINING 3-6-3
                 # update the input sequence
                 input_sequence = generated
 
@@ -397,7 +398,8 @@ class Generator():
             output = []
 
             # we repeat the process to get the entire verse (end-of-verse token is predicted)
-            for i in range(int(max_len/3)):
+            # for i in range(int(max_len/3)):
+            for i in range(max_len):
 
                 enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
                 logits, attention_weights = self.model(
@@ -413,11 +415,11 @@ class Generator():
                 # append the predicted token to the output
                 output.append(predicted_id.numpy())
             
-                #TODO: 3-4 TRAINNG
+                #TODO: TRAINING 3-4-1
                 # # stop generation if the token coincides with the end-of-verse or end-of-tercet tokens
                 # if predicted_id == self.dataloader.eov or predicted_id == self.dataloader.eot: break
 
-                #TODO: 3-3 TRAINNG
+                #TODO: TRAINING 3-6-3
                 # stop generation if the token coincides with the end-of-verse or end-of-tercet tokens
                 if predicted_id == self.dataloader.eot: break
             
@@ -430,7 +432,7 @@ class Generator():
                                                                 decoder_input,
                                                                 max_len,
                                                                 beam_width=5,
-                                                                verbose=True)
+                                                                verbose=False)
 
             output = beams[0][0]
 
@@ -629,8 +631,8 @@ class Generator():
                 if verbose:
                     plt.show()
 
-                # clear figure
-                plt.clf()
+                # close figure
+                plt.close()
 
     def generations_table(self, out_path: str = None, verbose: bool = True):
 

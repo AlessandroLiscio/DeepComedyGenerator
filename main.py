@@ -2,7 +2,7 @@
 
 from src.parser import Parser
 
-runtime = 'local'
+runtime = 'slurm'
 parser = Parser(runtime)
 
 if runtime == 'colab':
@@ -47,6 +47,7 @@ assert d_model % heads == 0
 epochs_production = parser.epochs_production
 epochs_comedy     = parser.epochs_comedy
 checkpoint        = parser.checkpoint
+pred_size         = parser.pred_size
 
 ## VERBOSE
 verbose = parser.verbose
@@ -67,6 +68,7 @@ else:
   dataloader = DataLoader(in_path=in_path,
                           comedy_name=comedy_name,
                           tokenization=tokenization,
+                          skip = pred_size,
                           repetitions_production=epochs_production,
                           repetitions_comedy=epochs_comedy,
                           verbose = verbose)
