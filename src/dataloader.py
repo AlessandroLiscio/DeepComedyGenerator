@@ -9,7 +9,6 @@ class DataLoader():
                 in_path:str = 'data/tokenized/',
                 comedy_name:str = 'comedy',
                 tokenization:str = 'base',
-                skip:int = 1,
                 repetitions_production:int = 0,
                 repetitions_comedy:int = 0,
                 from_pickle:str = None,
@@ -27,7 +26,9 @@ class DataLoader():
         self.files_dict = {}
         self.tercet_max_len = 0
         self.separator = '|'
-        self.skip = skip
+
+        self.pred_size = None
+        self.inp_len = None
 
         if not tokenization == 'base' and not tokenization == 'spaces':
             print(f"ERROR: incorrect tokenization parameter '{tokenization}'")
@@ -169,6 +170,7 @@ class DataLoader():
         self.eov = self.str2idx['</v>']
         self.sot = self.str2idx['<t>']
         self.eot = self.str2idx['</t>']
+        self.alphas_start = len(special_tokens)+len(punctuation)+1
 
     # Returns set of syllales from input list of verses
     def _verses_to_tokens_set(self, verses_list, verbose:bool=False):
@@ -218,13 +220,18 @@ class DataLoader():
 
                 dataset = self.files_dict[self._get_tokenized_filename(self.comedy_name)]
 
+                # TODO: CHOOSE TRAINING OPTION (1-2-1, 3-4-1, 3-6-3)
+                inp_len = 1 # 3, 3
+                tar_len = 2 # 4, 6
+                skip    = 1 # 1, 3
+
+                self.pred_size = skip
+
                 # Split input target for Divine Comedy dataset
                 dataset, self.original_lengths[dataset_name], self.tercet_max_len = self._split_input_target(
                     dataset_name = dataset_name,
                     dataset = dataset,
-                    # TODO: TRAINING 3-4-1 vs 3-6-3
-                    # inp_len = 3, tar_len = 4, skip = self.skip,
-                    inp_len = 3, tar_len = 6, skip = self.skip,
+                    inp_len = inp_len, tar_len = tar_len, skip = skip,
                     repetitions = self.repetitions[dataset_name])
 
             self.datasets[dataset_name] = dataset
@@ -242,6 +249,8 @@ class DataLoader():
         # Concatenate the text lists in production
         if dataset_name == 'production':
             dataset = flatten(dataset)
+        else:
+            self.inp_len = inp_len
         
         # Prepare data for model (list of integers)
         dataset = split_tokens(dataset, self.separator)
@@ -270,8 +279,8 @@ class DataLoader():
 
         # Create dataset from inputs and targets
         dataset = tf.data.Dataset.from_tensor_slices((
-            tf.keras.preprocessing.sequence.pad_sequences(inputs), 
-            tf.keras.preprocessing.sequence.pad_sequences(targets)))
+            tf.keras.preprocessing.sequence.pad_sequences(inputs, padding='post'), 
+            tf.keras.preprocessing.sequence.pad_sequences(targets, padding='post')))
         # cache the dataset to memory to get a speedup while reading from it.
         dataset = dataset.cache()
         # create batched dataset and shuffle it
@@ -362,7 +371,7 @@ class DataLoader():
 
         '''returns the list of the first three verses of the divine comedy'''
         
-        return self.files_dict[self._get_tokenized_filename(self.comedy_name)][:3]
+        return self.files_dict[self._get_tokenized_filename(self.comedy_name)][:self.inp_len]
 
     ############################################################################
     #######################     FILES MANAGEMENT      ##########################

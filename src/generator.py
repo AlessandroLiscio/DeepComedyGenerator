@@ -159,7 +159,7 @@ class Generator():
         the model tries to predict the next one. Then loss
         and accuracies are computed and gradients are applied'''
 
-        pred_size = self.dataloader.skip
+        pred_size = self.dataloader.pred_size
 
         # split input and target
         tar_inp = tar[:, :-pred_size]
@@ -195,6 +195,8 @@ class Generator():
         and the prediction, it computes the loss value ignoring
         the masked tokens.'''
 
+        ######### DEFAULT ########
+
         # "mask" is a boolean tensor with False values on padding values (0 values) 
         mask = tf.math.logical_not(tf.math.equal(real, 0))
         # "loss_" is a tensor of float values
@@ -204,18 +206,36 @@ class Generator():
         # apply mask to loss tensor
         loss_ *= mask
 
-        # TODO: IMPLEMENTARE LOSS PER ENDECASILLABI
-        # # syllables mask
-        # sylls_mask = tf.math.equal(pred, self.eov)
-        # sylls_mask *= tf.where(sylls_mask, 2.0, 1.0)
+        ######### EOV MASK #########
 
-        # # syllables mask
-        # sylls_mask = tf.math.greater_equal(pred, self.alphas_start)
-        # hendec_score = abs(11.0 - tf.reduce_sum(tf.cast(sylls_mask, tf.float32))/4)
-        # return tf.reduce_sum(loss_)/tf.reduce_sum(mask)*hendec_score
+        # eov mask
+        eov_mask = tf.math.equal(real, self.dataloader.eov)
+        eov_mask = tf.where(eov_mask, 5.0, 1.0)
+        eov_mask = tf.cast(eov_mask, dtype=loss_.dtype)
+
+        # apply mask to loss tensor
+        loss_ *= eov_mask
 
         # returns a single float value representing the loss value
         return tf.reduce_sum(loss_) / tf.reduce_sum(mask)
+
+        ########## SYLLS SCORE ##########
+
+        # # real target syllables
+        # real_sylls = tf.math.greater_equal(real, self.alphas_start)
+        # real_sylls = tf.cast(real_sylls, dtype=loss_.dtype)
+        # real_sylls = tf.reduce_sum(real_sylls)
+
+        # # predicted target syllables
+        # pred_sylls = tf.math.greater_equal(pred, self.alphas_start)
+        # pred_sylls = tf.cast(pred_sylls, dtype=loss_.dtype)
+        # pred_sylls = tf.reduce_sum(pred_sylls)
+
+        # # compute syllables score
+        # sylls_score = abs(real_sylls - pred_sylls) / real_sylls
+
+        # sylls_score = real_sylls / (real_sylls - abs(real_sylls - pred_sylls) )
+        # return tf.reduce_sum(loss_) / tf.reduce_sum(mask) * sylls_score        
 
     ############################################################################
     ##################            SAVE AND LOAD           ######################
@@ -285,7 +305,8 @@ class Generator():
                 encode_tokens(
                     split_tokens(tercet, self.dataloader.separator),
                     self.dataloader.str2idx))],
-            maxlen=self.dataloader.tercet_max_len)[0])
+            maxlen=self.dataloader.tercet_max_len)[0],
+            padding='post')
 
         # print("\nStart:\n", np.array(tercet))        
         print("\nGenerating new cantica: ")
@@ -352,7 +373,6 @@ class Generator():
                         [input_sequence],
                         maxlen=max_len)[0])
 
-                #TODO: uncomment to debug
                 # print(clear_text(ints_to_text(input_sequence, self.dataloader.idx2str)))
 
                 # generate one verse
@@ -361,19 +381,16 @@ class Generator():
                                                         temperature = temperature,
                                                         generation_type = generation_type)
 
-                #TODO: uncomment to debug
                 # print('\n', len(generated))
                 # print(generated)
-                print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
+                # print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
 
-                #TODO: TRAINING 3-4-1
-                # # update the input sequence
-                # input_sequence += generated
-                # input_sequence = drop_first_verse(input_sequence)
-
-                #TODO: TRAINING 3-6-3
                 # update the input sequence
-                input_sequence = generated
+                if self.dataloader.pred_size == 1:
+                    input_sequence += generated
+                    input_sequence = drop_first_verse(input_sequence)
+                else:
+                    input_sequence = generated
 
                 # append the generated verse to the output
                 output += generated
@@ -415,13 +432,11 @@ class Generator():
                 # append the predicted token to the output
                 output.append(predicted_id.numpy())
             
-                #TODO: TRAINING 3-4-1
-                # # stop generation if the token coincides with the end-of-verse or end-of-tercet tokens
-                # if predicted_id == self.dataloader.eov or predicted_id == self.dataloader.eot: break
-
-                #TODO: TRAINING 3-6-3
+                #TODO: CHOOSE BASED ON DATASET
                 # stop generation if the token coincides with the end-of-verse or end-of-tercet tokens
-                if predicted_id == self.dataloader.eot: break
+                # if predicted_id == self.dataloader.eov or predicted_id == self.dataloader.eot: break
+                # if predicted_id == self.dataloader.eot: break
+                if predicted_id == self.dataloader.eov: break
             
                 # otherwise the token is appended both to the new decoder input
                 decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)

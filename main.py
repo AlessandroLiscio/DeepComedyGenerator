@@ -1,37 +1,50 @@
-############################ SETUP ############################
-
 from src.parser import Parser
-
-runtime = 'slurm'
-parser = Parser(runtime)
-
-if runtime == 'colab':
-  comedy_name  = 'comedy_11_np_is_es'
-  tokenization = 'spaces'
-  #TODO: SAMPLING
-  generation = 'sampling'
-  #TODO: BEAM_SEARCH
-  # generation = 'beam_search'
-else:
-  comedy_name  = parser.comedy_name
-  tokenization = parser.tokenization
-  generation = parser.generation
-
-generation_types = ['sampling', 'beam_search']
-if not generation in generation_types:
-  raise ValueError(f"Incorrect 'generation' parameter found. Please choose one in {generation_types}.")
-
-############################ ARGS ############################
-
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import numpy as np
 from src.generator import Generator
 from src.dataloader import DataLoader
 
+############################ SETUP ############################
+
+## LOCAL
+in_path  = 'data/tokenized/verses_sov/'
+out_path  = "results/"
+
+# ## SLURM
+# in_path  = 'data/tokenized/verses_sov/'
+# out_path  = '../../../../../public/liscio.alessandro/results/'
+
+# ## COLAB
+# in_path = '/content/drive/MyDrive/DC-gen/data/tokenized/verses_sov/' 
+# out_path = '/content/drive/MyDrive/DC-gen/results/'
+
+parser = Parser(in_path=in_path,
+                out_path=out_path,
+                comedy_name='comedy_11_np_is_es',
+                tokenization='spaces', # ['base', 'spaces']
+                generation='sampling', # ['sampling', 'beam_search', None]
+                encoders=3,
+                decoders=3,
+                heads=2,
+                d_model=256,
+                dff=512,
+                dropout=0.2,
+                epochs_production=0,
+                epochs_comedy=70,
+                checkpoint=10,
+                verbose=True)
+
+############################ ARGS ############################
+
 ## PATHS
 in_path  = parser.in_path
 out_path = parser.out_path
+
+## RUN INFO
+comedy_name  = parser.comedy_name
+tokenization = parser.tokenization
+generation   = parser.generation
 
 ## MODEL PARAMETERS
 encoders = parser.encoders
@@ -41,16 +54,19 @@ d_model  = parser.d_model
 dff      = parser.dff
 dropout  = parser.dropout
 
-assert d_model % heads == 0
-
 ## TRAINING INFO
 epochs_production = parser.epochs_production
 epochs_comedy     = parser.epochs_comedy
 checkpoint        = parser.checkpoint
-pred_size         = parser.pred_size
 
 ## VERBOSE
 verbose = parser.verbose
+
+## ASSERTS
+assert d_model % heads == 0
+assert generation in ['sampling', 'beam_search', None]
+
+######################### OUTPUT FOLDER ###########################
 
 # Create output folder
 if not os.path.exists(out_path):
@@ -64,17 +80,15 @@ if os.path.isfile(f"{out_path}{comedy_name}_{tokenization}/dataloader.pkl"):
                         comedy_name = comedy_name,
                         tokenization = tokenization,
                         verbose = verbose)
+  print(dataloader)
 else:
   dataloader = DataLoader(in_path=in_path,
                           comedy_name=comedy_name,
                           tokenization=tokenization,
-                          skip = pred_size,
                           repetitions_production=epochs_production,
                           repetitions_comedy=epochs_comedy,
                           verbose = verbose)
   dataloader.save(out_path)
-
-dataloader.print_comedy_samples(1, text=True, ints=True)
 
 ############################ GENERATOR ############################
 
@@ -87,6 +101,9 @@ generator = Generator(dataloader = dataloader,
                       dropout = dropout,
                       verbose = verbose)
 
+# Print comedy samples
+dataloader.print_comedy_samples(1, text=True, ints=True)
+
 # Train model on datasets
 generator.train_model(checkpoint = checkpoint,
                       out_path = out_path)
@@ -96,18 +113,19 @@ generator.train_model(checkpoint = checkpoint,
 
 ########################### GENERATIONS ###########################
 
-if not runtime == 'colab': # let's not waste colab precious gpu time
+if generation:
 
-  # Choose starting tercet
+  # CHOOSE STARTING TERCET
   start = dataloader.get_comedy_start()
   print("start:\n", np.array(start))
 
-  # Choose the list of temperatures (one generation for each temperature)
+  # CHOOSE LIST OF TEMPERATURES (ONE GENERATION FOR EACH TEMPERATURE)
   if generation == 'sampling':
-    temperatures = np.round(np.linspace(0.5, 1.5, num=5), 2)
+    temperatures = np.round(np.linspace(0.7, 1.3, num=5), 2)
   elif generation == 'beam_search':
     temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 
+  # START GENERATION
   for ckpt_production in range(0, epochs_production+1, checkpoint):
     for ckpt_comedy in range(0, epochs_comedy+1, checkpoint):
       

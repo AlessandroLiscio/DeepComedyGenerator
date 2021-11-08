@@ -8,37 +8,35 @@ from src.dataloader import DataLoader
 
 ############################ SETUP ############################
 
-## DATASET INFO
-comedy_name  = 'comedy_11_np_is_es'
-tokenization = 'spaces'
-
-## GENERATION TYPE
-#TODO: SAMPLING
-generation = 'sampling'
-#TODO: BEAM_SEARCH
-# generation = 'beam_search'
-
 ## PATHS
-in_path  = '../data/hyphenated/'
 out_path = '../results/'
 
+## RUN INFO
+comedy_name  = 'comedy_np_is_es'
+tokenization = 'spaces' # ['base', 'spaces']
+generation = 'sampling' # ['beam_search', 'sampling', None]  
+
 ## MODEL PARAMETERS
-encoders = 5
-decoders = 5
-heads    = 4
+encoders = 3
+decoders = 3
+heads    = 2
 d_model  = 256
 dff      = 512
 dropout  = 0.2
 
-assert d_model % heads == 0
-
 ## TRAINING INFO
 epochs_production = 0
-epochs_comedy     = 100
+epochs_comedy     = 70
 checkpoint        = 10
 
 ## VERBOSE
 verbose = True
+
+## ASSERTS
+assert d_model % heads == 0
+assert generation in ['sampling', 'beam_search', None]
+
+######################### OUTPUT FOLDER ###########################
 
 # Create output folder
 if not os.path.exists(out_path):
@@ -64,19 +62,20 @@ generator = Generator(dataloader = dataloader,
 
 ########################### GENERATIONS ###########################
 
-# Choose starting tercet
+# CHOOSE STARTING TERCET
 start = dataloader.get_comedy_start()
 print("start:\n", np.array(start))
 
-# Choose the list of temperatures (one generation for each temperature)
+# CHOOSE LIST OF TEMPERATURES (ONE GENERATION FOR EACH TEMPERATURE)
 if generation == 'sampling':
-  # temperatures = np.round(np.linspace(0.5, 1.5, num=5), 2)
-  temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
+  # temperatures = np.round(np.linspace(0.5, 1.25, num=4), 2)
+  temperatures = np.round(np.linspace(0.7, 1.3, num=5), 2)
 elif generation == 'beam_search':
   temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 
+# START GENERATION
 for ckpt_production in range(0, epochs_production+1, checkpoint):
-  for ckpt_comedy in range(90, epochs_comedy+1, checkpoint):
+  for ckpt_comedy in range(40, epochs_comedy+1, checkpoint):
     
     generator.epochs['production'] = min(ckpt_production, epochs_production)
     generator.epochs['comedy'] = min(ckpt_comedy, epochs_comedy)
