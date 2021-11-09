@@ -11,7 +11,8 @@ in_path = "../data/hyphenated/"
 data_path = "../data/tokenized/"
 create_folder(data_path)
 
-for dataset in ['tercets', 'tercets_sov', 'tercets_sot', 'tercets_sov_sot', 'verses', 'verses_sov']:
+# for dataset in ['tercets', 'tercets_sov', 'tercets_sot', 'tercets_sov_sot', 'verses', 'verses_sov']:
+for dataset in ['sov', 'sot', 'sov_sot']:
 
     out_path = data_path+f"{dataset}/"
     create_folder(out_path, verbose=True)
@@ -24,28 +25,24 @@ for dataset in ['tercets', 'tercets_sov', 'tercets_sot', 'tercets_sov_sot', 'ver
         with open(in_path+filename, "r") as f:
             text = f.readlines()
 
-        for row in text:
+        for verse in text:
 
             if "sov" in dataset:
-                row = '<v>|'+row
+                verse = '<v>|'+verse
 
-            row = row.replace('\n','|</v>\n')
+            verse = verse.replace('\n','|</v>\n')
 
-            if "tercets" in dataset:
+            if "sot" in dataset:
                 if count == 3:
-                    row = row.replace('</v>', '</t>')
                     count = 0
-                if "sot" in dataset and count == 1:
-                    if "sov" in dataset:
-                        row = row.replace('<v>', '<t>')
-                    else:
-                        row = '<t>'+row
+                elif count == 1:
+                    verse = '<t>|'+verse
                 count += 1
 
-            new_text.append(row)
+            new_text.append(verse)
 
         filename = filename.replace("hyphenated", "tokenized")
         with open(out_path+filename, "w") as f:
-            for row in new_text:
-                f.write(row)
+            for verse in new_text:
+                f.write(verse)
             

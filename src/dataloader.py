@@ -359,7 +359,7 @@ class DataLoader():
                     targets[0]
                 ))
 
-        print("{}".format("="*45))
+        print("{}\n".format("="*45))
 
     def get_comedy_start(self):
 
