@@ -119,8 +119,9 @@ class DataLoader():
         # initialize groups
         special_tokens = ['<v>', '</v>', '<t>', '</t>']
         punctuation = []
-        non_ending_sylls = []
-        ending_sylls = []
+        start_sylls = []
+        mid_sylls = []
+        end_sylls = []
 
         for token in tokens:
             # NON-SYLLABLES
@@ -131,20 +132,23 @@ class DataLoader():
                 punctuation.append(token)
             # SYLLABLES
             else:
-                if not token == '' and not token[-1] == " ":
-                    non_ending_sylls.append(token)
-                else:
-                    if token:
-                        ending_sylls.append(token)
+                if not token == '':
+                    if not token[0] == " " and not token[-1] == " ":
+                        mid_sylls.append(token)
+                    elif token[0] == " ":
+                        start_sylls.append(token)
+                    elif token[-1]:
+                        end_sylls.append(token)
 
         # sort groups
         # special_tokens = sorted(special_tokens, key=len)
         punctuation = sorted(punctuation, key=ord)
-        non_ending_sylls = sorted(non_ending_sylls, key=len)
-        ending_sylls = sorted(ending_sylls, key=len)
+        start_sylls = sorted(start_sylls, key=len)
+        mid_sylls   = sorted(mid_sylls, key=len)
+        end_sylls   = sorted(end_sylls, key=len)
 
         # create the tokens vocabulary following the order
-        for group in [special_tokens, punctuation, non_ending_sylls, ending_sylls]:
+        for group in [special_tokens, punctuation, start_sylls, mid_sylls, end_sylls]:
             self.vocab.extend(group)
 
         # insert the empty string at poistion 0
@@ -157,8 +161,9 @@ class DataLoader():
             'size' : len(self.vocab),
             'special tokens' : len(special_tokens),
             'punctuation' : len(punctuation),
-            'non-ending syllables' : len(non_ending_sylls),
-            'ending syllables' : len(ending_sylls)
+            'starting syllables' : len(start_sylls),
+            'middle syllables' : len(mid_sylls),
+            'ending syllables' : len(end_sylls)
         }
 
         # Creating a mapping from unique characters to indices
