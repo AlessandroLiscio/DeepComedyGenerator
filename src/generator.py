@@ -364,12 +364,9 @@ class Generator():
         input_sequence = start.copy()
         output = []
 
-        # if generation_type == 'beam_search':
-        #     n_verses = int(n_verses / 3) + 1
-
         try:
 
-            for _ in range(n_verses):
+            for _ in range(n_verses+1):
 
                 # pad the input list to reach the max_len
                 input_sequence = list(

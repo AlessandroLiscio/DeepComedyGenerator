@@ -85,7 +85,7 @@ class DataLoader():
 
         files_list = []
         files_names = []
-
+        
         for i, filename in enumerate(self.train_order):
 
             # Read file

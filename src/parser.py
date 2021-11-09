@@ -31,7 +31,6 @@ class Parser(ArgumentParser):
         self.d_model  = d_model
         self.dff      = dff
         self.dropout  = dropout
-        assert self.d_model % self.heads == 0
 
         ## TRAINING INFO
         self.epochs_production = epochs_production

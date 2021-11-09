@@ -1,3 +1,5 @@
+############################ IMPORTS ############################
+
 from src.parser import Parser
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -7,8 +9,8 @@ from src.dataloader import DataLoader
 
 ############################ SETUP ############################
 
-dataset = 'tercets_sov' # ['tercets', 'tercets_sot', 'tercets_sov', 'verses', 'verses_sov']
-stop = ['</v>', '</t>']     # [ ['</t>'], ['</v>'], ['</v>', '</t>'] ]
+dataset = 'tercets_sov' # one of the folders in "data/tokenized/"
+stop = ['</v>', '</t>'] # generation stopping characters
 
 # ## LOCAL
 # in_path  = f'data/tokenized/{dataset}/'
@@ -25,15 +27,15 @@ out_path  = '../../../../../public/liscio.alessandro/results/'
 parser = Parser(in_path=in_path,
                 out_path=out_path,
 
-                comedy_name='comedy_np_is_es',
-                tokenization='spaces', # ['base', 'spaces']
+                comedy_name='comedy_np', # ['comedy_np', 'comedy_11_np']
+                tokenization='base', # ['base', 'es', 'is-es']
 
-                inp_len=1,
-                tar_len=2,
+                inp_len=3,
+                tar_len=4,
 
-                encoders=3,
-                decoders=3,
-                heads=2,
+                encoders=5,
+                decoders=5,
+                heads=4,
                 d_model=256,
                 dff=512,
                 dropout=0.2,
@@ -44,84 +46,53 @@ parser = Parser(in_path=in_path,
 
                 verbose=True)
 
-############################ ARGS ############################
-
-## PATHS
-in_path  = parser.in_path
-out_path = parser.out_path
-
-## RUN INFO
-comedy_name  = parser.comedy_name
-tokenization = parser.tokenization
-
-## DATASET INFO
-inp_len = parser.inp_len
-tar_len = parser.tar_len
-
-## MODEL PARAMETERS
-encoders = parser.encoders
-decoders = parser.decoders
-heads    = parser.heads
-d_model  = parser.d_model
-dff      = parser.dff
-dropout  = parser.dropout
-
-## TRAINING INFO
-epochs_production = parser.epochs_production
-epochs_comedy     = parser.epochs_comedy
-checkpoint        = parser.checkpoint
-
-## VERBOSE
-verbose = parser.verbose
-
-## ASSERTS
-assert d_model % heads == 0
+assert parser.d_model % parser.heads == 0
 
 ######################### OUTPUT FOLDER ###########################
 
 # Create output folder
-if not os.path.exists(out_path):
-    os.mkdir(out_path)
-    print("CREATED: ", out_path)
+if not os.path.exists(parser.out_path):
+    os.mkdir(parser.out_path)
+    print("CREATED: ", parser.out_path)
 
 ########################### DATALOADER ###########################
 
-if os.path.isfile(f"{out_path}{comedy_name}_{tokenization}/dataloader.pkl"):
-  dataloader = DataLoader(from_pickle = out_path,
-                          comedy_name = comedy_name,
-                          tokenization = tokenization,
-                          inp_len = inp_len,
-                          tar_len = tar_len,
-                          verbose = verbose)
+if os.path.isfile(f"{parser.out_path}{parser.comedy_name}_{parser.tokenization}/dataloader.pkl"):
+  dataloader = DataLoader(from_pickle = parser.out_path,
+                          comedy_name = parser.comedy_name,
+                          tokenization = parser.tokenization,
+                          inp_len = parser.inp_len,
+                          tar_len = parser.tar_len,
+                          verbose = parser.verbose)
 else:
-  dataloader = DataLoader(in_path=in_path,
-                          comedy_name=comedy_name,
-                          tokenization=tokenization,
-                          inp_len = inp_len,
-                          tar_len = tar_len,
-                          repetitions_production=epochs_production,
-                          repetitions_comedy=epochs_comedy,
-                          verbose = verbose)
-  dataloader.save(out_path)
+  dataloader = DataLoader(in_path=parser.in_path,
+                          comedy_name=parser.comedy_name,
+                          tokenization=parser.tokenization,
+                          inp_len = parser.inp_len,
+                          tar_len = parser.tar_len,
+                          repetitions_production=parser.epochs_production,
+                          repetitions_comedy=parser.epochs_comedy,
+                          verbose = parser.verbose)
+  dataloader.save(parser.out_path)
 
 ############################ GENERATOR ############################
 
 generator = Generator(dataloader = dataloader,
-                      encoders = encoders, 
-                      decoders = decoders, 
-                      d_model = d_model,
-                      dff = dff,
-                      heads = heads,
-                      dropout = dropout,
+                      encoders = parser.encoders, 
+                      decoders = parser.decoders, 
+                      d_model = parser.d_model,
+                      dff = parser.dff,
+                      heads = parser.heads,
+                      dropout = parser.dropout,
                       stop = stop,
-                      verbose = verbose)
+                      verbose = parser.verbose)
 
 # Print comedy samples
 dataloader.print_comedy_samples(1, text=True, ints=True)
 
 # Train model on datasets
-generator.train_model(checkpoint = checkpoint,
-                      out_path = out_path)
+generator.train_model(checkpoint = parser.checkpoint,
+                      out_path = parser.out_path)
 
 # Print training information
 # generator.print_training_info()
@@ -142,15 +113,17 @@ for generation_type in ['sampling', 'beam_search']:
     temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 
   # START GENERATION
-  for ckpt_production in range(epochs_production, -1, -checkpoint):
-    for ckpt_comedy in range(epochs_comedy, -1, -checkpoint):
+  for ckpt_production in range(parser.epochs_production, -1, -parser.checkpoint):
+    for ckpt_comedy in range(parser.epochs_comedy, -1, -parser.checkpoint):
       
       generator.epochs['production'] = ckpt_production
       generator.epochs['comedy'] = ckpt_comedy
 
-      if os.path.isdir(generator.get_model_folder(out_path)):
+      if os.path.isdir(generator.get_model_folder(parser.out_path)):
           print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
-          generator.load(out_path, verbose=False)
+          generator.load(parser.out_path, verbose=False)
           log = generator.generate_from_tercet(start, temperatures, 100, generation_type)
-          generator.save_generations(out_path, generation_type, verbose=False)
-          # generator.generations_table(out_path, verbose=False)
+          generator.save_generations(parser.out_path, generation_type, verbose=False)
+          # generator.generations_table(parser.out_path, verbose=False)
+
+########################### END ###########################

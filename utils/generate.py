@@ -1,3 +1,5 @@
+############################ IMPORTS ############################
+
 import os
 import sys
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -13,12 +15,12 @@ dataset = 'tercets_sov' # ['tercets', 'tercets_sot', 'tercets_sov', 'verses', 'v
 stop = ['</v>', '</t>']     # [ ['</t>'], ['</v>'], ['</v>', '</t>'] ]
 
 ## LOCAL
-in_path  = f'../data/tokenized/{dataset}/'
-out_path  = "../results/"
+in_path  = f'data/tokenized/{dataset}/'
+out_path  = "results/"
 
 # ## SLURM
-# in_path  = f'../data/tokenized/{dataset}/'
-# out_path  = '../../../../../../public/liscio.alessandro/results/'
+# in_path  = f'data/tokenized/{dataset}/'
+# out_path  = '../../../../../public/liscio.alessandro/results/'
 
 # ## COLAB
 # in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{dataset}/' 
@@ -27,8 +29,8 @@ out_path  = "../results/"
 parser = Parser(in_path=in_path,
                 out_path=out_path,
 
-                comedy_name='comedy_np_is_es',
-                tokenization='spaces', # ['base', 'spaces']
+                comedy_name='comedy_np', # ['comedy_np', 'comedy_11_np']
+                tokenization='base', # ['base', 'es', 'is_es']
 
                 inp_len=3,
                 tar_len=4,
@@ -41,71 +43,40 @@ parser = Parser(in_path=in_path,
                 dropout=0.2,
 
                 epochs_production=0,
-                epochs_comedy=100,
+                epochs_comedy=70,
                 checkpoint=10,
 
                 verbose=True)
 
-############################ ARGS ############################
-
-## PATHS
-in_path  = parser.in_path
-out_path = parser.out_path
-
-## RUN INFO
-comedy_name  = parser.comedy_name
-tokenization = parser.tokenization
-
-## DATASET INFO
-inp_len = parser.inp_len
-tar_len = parser.tar_len
-
-## MODEL PARAMETERS
-encoders = parser.encoders
-decoders = parser.decoders
-heads    = parser.heads
-d_model  = parser.d_model
-dff      = parser.dff
-dropout  = parser.dropout
-
-## TRAINING INFO
-epochs_production = parser.epochs_production
-epochs_comedy     = parser.epochs_comedy
-checkpoint        = parser.checkpoint
-
-## VERBOSE
-verbose = parser.verbose
-
-## ASSERTS
-assert d_model % heads == 0
+assert parser.d_model % parser.heads == 0
 
 ######################### OUTPUT FOLDER ###########################
 
 # Create output folder
-if not os.path.exists(out_path):
-    os.mkdir(out_path)
-    print("CREATED: ", out_path)
+if not os.path.exists(parser.out_path):
+    os.mkdir(parser.out_path)
+    print("CREATED: ", parser.out_path)
 
 ########################### DATALOADER ###########################
 
-dataloader = DataLoader(from_pickle = out_path,
-                        comedy_name = comedy_name,
-                        tokenization = tokenization,
-                        inp_len = inp_len,
-                        tar_len = tar_len,
-                        verbose = verbose)
+dataloader = DataLoader(from_pickle = parser.out_path,
+                        comedy_name = parser.comedy_name,
+                        tokenization = parser.tokenization,
+                        inp_len = parser.inp_len,
+                        tar_len = parser.tar_len,
+                        verbose = parser.verbose)
 
 ############################ GENERATOR ############################
 
 generator = Generator(dataloader = dataloader,
-                      encoders = encoders, 
-                      decoders = decoders, 
-                      d_model = d_model,
-                      dff = dff,
-                      heads = heads,
-                      dropout = dropout,
+                      encoders = parser.encoders, 
+                      decoders = parser.decoders, 
+                      d_model = parser.d_model,
+                      dff = parser.dff,
+                      heads = parser.heads,
+                      dropout = parser.dropout,
                       stop = stop,
-                      verbose = verbose)
+                      verbose = parser.verbose)
 
 # Print comedy samples
 dataloader.print_comedy_samples(1, text=True, ints=True)
@@ -126,15 +97,17 @@ for generation_type in ['sampling', 'beam_search']:
     temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 
   # START GENERATION
-  for ckpt_production in range(epochs_production, -1, -checkpoint):
-    for ckpt_comedy in range(epochs_comedy, -1, -checkpoint):
+  for ckpt_production in range(parser.epochs_production, -1, -parser.checkpoint):
+    for ckpt_comedy in range(parser.epochs_comedy, -1, -parser.checkpoint):
       
       generator.epochs['production'] = ckpt_production
       generator.epochs['comedy'] = ckpt_comedy
 
-      if os.path.isdir(generator.get_model_folder(out_path)):
+      if os.path.isdir(generator.get_model_folder(parser.out_path)):
           print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
-          generator.load(out_path, verbose=False)
+          generator.load(parser.out_path, verbose=False)
           log = generator.generate_from_tercet(start, temperatures, 100, generation_type)
-          generator.save_generations(out_path, generation_type, verbose=False)
-          # generator.generations_table(out_path, verbose=False)
+          generator.save_generations(parser.out_path, generation_type, verbose=False)
+          # generator.generations_table(parser.out_path, verbose=False)
+
+########################### END ###########################
