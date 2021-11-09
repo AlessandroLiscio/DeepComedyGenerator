@@ -63,8 +63,8 @@ class Parser(ArgumentParser):
         if inputs.generation:   self.generation   = inputs.generation
 
         ## DATASET INFO
-        if inputs.inp_len: self.inp_len = inp_len
-        if inputs.tar_len: self.tar_len = tar_len
+        if inputs.inp_len: self.inp_len = inputs.inp_len
+        if inputs.tar_len: self.tar_len = inputs.tar_len
         
         ## MODEL PARAMETERS
         if inputs.encoders: self.encoders = inputs.encoders
@@ -98,9 +98,9 @@ class Parser(ArgumentParser):
         self.add_argument("--generation", type=str,
                             help="generation method. Must be either 'sampling' or 'beam_search'")
 
-        self.add_argument("--inp_len", type=str,
+        self.add_argument("--inp_len", type=int,
                             help="number of verses input to the model")
-        self.add_argument("--tar_len", type=str,
+        self.add_argument("--tar_len", type=int,
                             help="number of verses target for the model")
 
         ## MODEL PARAMETERS

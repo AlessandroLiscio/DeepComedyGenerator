@@ -6,13 +6,13 @@ from src.tokensprocessing import *
 class DataLoader():
 
     def __init__(self,
-                in_path:str,
                 comedy_name:str,
                 tokenization:str,
                 inp_len:int,
                 tar_len:int,
                 repetitions_production:int = 0,
                 repetitions_comedy:int = 0,
+                in_path:str = None,
                 from_pickle:str = None,
                 verbose:str = True):
 
@@ -39,7 +39,7 @@ class DataLoader():
             self._read_files(in_path)
             self._init_vocab_and_mappings()
             self._init_datasets()
-            if verbose: print(self)
+        if verbose: print(self)
 
     def __str__(self):
         return "\n".join((

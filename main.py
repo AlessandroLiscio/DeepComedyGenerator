@@ -7,8 +7,8 @@ from src.dataloader import DataLoader
 
 ############################ SETUP ############################
 
-dataset = 'verses_sov' # ['tercets', 'tercets_sot', 'verses', 'verses_sov']
-stop = ['</v>']     # [ ['</t>'], ['</v>'], ['</v>', '</t>'] ]
+dataset = 'tercets_sov' # ['tercets', 'tercets_sot', 'tercets_sov', 'verses', 'verses_sov']
+stop = ['</v>', '</t>']     # [ ['</t>'], ['</v>'], ['</v>', '</t>'] ]
 
 # ## LOCAL
 # in_path  = f'data/tokenized/{dataset}/'
@@ -96,7 +96,6 @@ if os.path.isfile(f"{out_path}{comedy_name}_{tokenization}/dataloader.pkl"):
                           inp_len = inp_len,
                           tar_len = tar_len,
                           verbose = verbose)
-  print(dataloader)
 else:
   dataloader = DataLoader(in_path=in_path,
                           comedy_name=comedy_name,
@@ -136,7 +135,7 @@ if generation:
 
   # CHOOSE STARTING TERCET
   start = dataloader.get_comedy_start()
-  print("start:\n", np.array(start))
+  print("\nstart:\n", np.array(start))
 
   # CHOOSE LIST OF TEMPERATURES (ONE GENERATION FOR EACH TEMPERATURE)
   if generation == 'sampling':
@@ -145,8 +144,8 @@ if generation:
     temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 
   # START GENERATION
-  for ckpt_production in range(0, epochs_production+1, checkpoint):
-    for ckpt_comedy in range(0, epochs_comedy+1, checkpoint):
+  for ckpt_production in range(epochs_production, 0, -checkpoint):
+    for ckpt_comedy in range(epochs_comedy, 0, -checkpoint):
       
       generator.epochs['production'] = min(ckpt_production, epochs_production)
       generator.epochs['comedy'] = min(ckpt_comedy, epochs_comedy)
@@ -155,5 +154,5 @@ if generation:
           print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
           generator.load(out_path, verbose=False)
           log = generator.generate_from_tercet(start, temperatures, 100, generation)
-          generator.save_generations(out_path, verbose=False)
-          generator.generations_table(out_path, verbose=False)
+          generator.save_generations(out_path, generation, verbose=False)
+          # generator.generations_table(out_path, verbose=False)

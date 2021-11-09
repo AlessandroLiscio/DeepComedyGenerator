@@ -309,8 +309,8 @@ class Generator():
                 encode_tokens(
                     split_tokens(tercet, self.dataloader.separator),
                     self.dataloader.str2idx))],
-            maxlen=self.dataloader.tercet_max_len)[0],
-            padding='post')
+            maxlen=self.dataloader.tercet_max_len,
+            padding='post')[0])
 
         # print("\nStart:\n", np.array(tercet))        
         print("\nGenerating new cantica: ")
@@ -364,12 +364,12 @@ class Generator():
         input_sequence = start.copy()
         output = []
 
-        if generation_type == 'beam_search':
-            n_verses = int(n_verses / 3) + 1
+        # if generation_type == 'beam_search':
+        #     n_verses = int(n_verses / 3) + 1
 
         try:
 
-            for _ in range(n_verses):
+            for _ in range(n_verses)
 
                 # pad the input list to reach the max_len
                 input_sequence = list(
@@ -395,6 +395,9 @@ class Generator():
                     input_sequence = update_input_sequence(input_sequence)
                 else:
                     input_sequence = generated
+
+                if input_sequence == None:
+                    return output
 
                 # append the generated verse to the output
                 output += generated
@@ -710,13 +713,15 @@ class Generator():
             json.dump(self.log, f, indent=4)
             if verbose: print(f"\n> Log saved in {out_path}")
 
-    def save_generations(self, out_path: str, verbose: bool = True):
+    def save_generations(self, out_path:str, generation_type:str, verbose:bool=True):
 
         '''save log dictionary as .json file and generations
         texts as .txt files in 'out_path' folder'''
 
         # create generations folder if it doesn't exist
         out_path = self.get_model_folder(out_path) + "generations/"
+        create_folder(out_path)
+        out_path += f"{generation_type}/"
         create_folder(out_path)
 
         # extract the texts from the log
