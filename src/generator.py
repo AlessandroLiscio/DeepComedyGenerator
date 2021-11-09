@@ -372,7 +372,8 @@ class Generator():
                 input_sequence = list(
                     tf.keras.preprocessing.sequence.pad_sequences(
                         [input_sequence],
-                        maxlen=max_len)[0])
+                        maxlen=max_len,
+                        padding='post')[0])
 
                 # print(clear_text(ints_to_text(input_sequence, self.dataloader.idx2str)))
 

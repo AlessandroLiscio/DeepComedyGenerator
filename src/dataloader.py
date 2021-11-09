@@ -123,6 +123,8 @@ class DataLoader():
         mid_sylls = []
         end_sylls = []
 
+        weird_sylls = []
+
         for token in tokens:
             # NON-SYLLABLES
             if '<' in token:
@@ -133,11 +135,13 @@ class DataLoader():
             # SYLLABLES
             else:
                 if not token == '':
+                    if len(token) > 1 and " " in token:
+                        weird_sylls.append(token)
                     if not token[0] == " " and not token[-1] == " ":
                         mid_sylls.append(token)
                     elif token[0] == " ":
                         start_sylls.append(token)
-                    elif token[-1]:
+                    elif token[-1] == " ":
                         end_sylls.append(token)
 
         # sort groups
@@ -146,6 +150,10 @@ class DataLoader():
         start_sylls = sorted(start_sylls, key=len)
         mid_sylls   = sorted(mid_sylls, key=len)
         end_sylls   = sorted(end_sylls, key=len)
+
+        # print("WEIRD SYLLABLES:\n", weird_sylls)
+        # print("STARTING SYLLABLES:\n", start_sylls)
+        # print("ENDING SYLLABLES:\n", end_sylls)
 
         # create the tokens vocabulary following the order
         for group in [special_tokens, punctuation, start_sylls, mid_sylls, end_sylls]:
