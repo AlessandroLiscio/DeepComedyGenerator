@@ -24,6 +24,7 @@ class Generator():
                  encoders: int = 5, decoders: int = 5, heads: int = 4,
                  d_model: int = 256, dff: int = 512, dropout: float = 0.2,
                  epochs_production: int = 0, epochs_comedy: int = 0,
+                 stop = ['</v>'],
                  verbose: bool = True):
 
         # initialize epochs
@@ -50,6 +51,9 @@ class Generator():
         self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
         self.train_loss = tf.keras.metrics.Mean(name='train_loss')
         self.train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
+
+        # generation_step stop tokens
+        self.stop = [self.dataloader.str2idx[stopper] for stopper in stop]
 
         # generator info
         self._init_log()
@@ -305,8 +309,8 @@ class Generator():
                 encode_tokens(
                     split_tokens(tercet, self.dataloader.separator),
                     self.dataloader.str2idx))],
-            maxlen=self.dataloader.tercet_max_len)[0],
-            padding='post')
+            maxlen=self.dataloader.tercet_max_len,
+            padding='post')[0])
 
         # print("\nStart:\n", np.array(tercet))        
         print("\nGenerating new cantica: ")
@@ -350,18 +354,18 @@ class Generator():
         influenced by the temperature: the higher the temperature, the more 
         original (or crazy) is the text.'''
 
-        # drop the first verse to keep a window of 3 verses
-        def drop_first_verse(sequence):
+        # updates_input_sequence based on "stop" tokens
+        def update_input_sequence(sequence):
             for i, token in enumerate(sequence):
-                if token == self.dataloader.eov or token == self.dataloader.eot:
+                if token in self.stop:
                     return sequence[i+1:]
 
         # variables initialization
         input_sequence = start.copy()
         output = []
 
-        if generation_type == 'beam_search':
-            n_verses = int(n_verses / 3) + 1
+        # if generation_type == 'beam_search':
+        #     n_verses = int(n_verses / 3) + 1
 
         try:
 
@@ -377,9 +381,9 @@ class Generator():
 
                 # generate one verse
                 generated, _ = self._generation_step(input_sequence,
-                                                        max_len = max_len,
-                                                        temperature = temperature,
-                                                        generation_type = generation_type)
+                                                    max_len = max_len,
+                                                    temperature = temperature,
+                                                    generation_type = generation_type)
 
                 # print('\n', len(generated))
                 # print(generated)
@@ -388,9 +392,12 @@ class Generator():
                 # update the input sequence
                 if self.dataloader.pred_size == 1:
                     input_sequence += generated
-                    input_sequence = drop_first_verse(input_sequence)
+                    input_sequence = update_input_sequence(input_sequence)
                 else:
                     input_sequence = generated
+
+                if input_sequence == None:
+                    return output
 
                 # append the generated verse to the output
                 output += generated
@@ -432,11 +439,8 @@ class Generator():
                 # append the predicted token to the output
                 output.append(predicted_id.numpy())
             
-                #TODO: CHOOSE BASED ON DATASET
-                # stop generation if the token coincides with the end-of-verse or end-of-tercet tokens
-                # if predicted_id == self.dataloader.eov or predicted_id == self.dataloader.eot: break
-                # if predicted_id == self.dataloader.eot: break
-                if predicted_id == self.dataloader.eov: break
+                # stop generation if the token coincides one of the "stop" tokens
+                if predicted_id in self.stop: break
             
                 # otherwise the token is appended both to the new decoder input
                 decoder_input = tf.concat([decoder_input, [[predicted_id]]], axis=-1)
@@ -473,8 +477,7 @@ class Generator():
             candidates = []
 
             for j, [beam, prob] in enumerate(beams):
-                if not beam[-1] == self.dataloader.eot:
-                # if not beam[-1] == self.dataloader.eov:
+                if not beam[-1] in self.stop:
                     tokens_temp, probabilities_temp, attention_weights = self._beam_search_decoding_step(
                         encoder_input,
                         tf.concat([decoder_input, [tf.cast(beam, tf.int32)]], axis=-1),
@@ -710,13 +713,15 @@ class Generator():
             json.dump(self.log, f, indent=4)
             if verbose: print(f"\n> Log saved in {out_path}")
 
-    def save_generations(self, out_path: str, verbose: bool = True):
+    def save_generations(self, out_path:str, generation_type:str, verbose:bool=True):
 
         '''save log dictionary as .json file and generations
         texts as .txt files in 'out_path' folder'''
 
         # create generations folder if it doesn't exist
         out_path = self.get_model_folder(out_path) + "generations/"
+        create_folder(out_path)
+        out_path += f"{generation_type}/"
         create_folder(out_path)
 
         # extract the texts from the log

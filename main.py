@@ -7,32 +7,41 @@ from src.dataloader import DataLoader
 
 ############################ SETUP ############################
 
-## LOCAL
-in_path  = 'data/tokenized/verses_sov/'
-out_path  = "results/"
+dataset = 'tercets_sov' # ['tercets', 'tercets_sot', 'tercets_sov', 'verses', 'verses_sov']
+stop = ['</v>', '</t>']     # [ ['</t>'], ['</v>'], ['</v>', '</t>'] ]
 
-# ## SLURM
-# in_path  = 'data/tokenized/verses_sov/'
-# out_path  = '../../../../../public/liscio.alessandro/results/'
+# ## LOCAL
+# in_path  = f'data/tokenized/{dataset}/'
+# out_path  = "results/"
+
+## SLURM
+in_path  = f'data/tokenized/{dataset}/'
+out_path  = '../../../../../public/liscio.alessandro/results/'
 
 # ## COLAB
-# in_path = '/content/drive/MyDrive/DC-gen/data/tokenized/verses_sov/' 
+# in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{dataset}/' 
 # out_path = '/content/drive/MyDrive/DC-gen/results/'
 
 parser = Parser(in_path=in_path,
                 out_path=out_path,
-                comedy_name='comedy_11_np_is_es',
+
+                comedy_name='comedy_np_is_es',
                 tokenization='spaces', # ['base', 'spaces']
-                generation='sampling', # ['sampling', 'beam_search', None]
+
+                inp_len=1,
+                tar_len=2,
+
                 encoders=3,
                 decoders=3,
                 heads=2,
                 d_model=256,
                 dff=512,
                 dropout=0.2,
+
                 epochs_production=0,
                 epochs_comedy=70,
                 checkpoint=10,
+
                 verbose=True)
 
 ############################ ARGS ############################
@@ -44,7 +53,10 @@ out_path = parser.out_path
 ## RUN INFO
 comedy_name  = parser.comedy_name
 tokenization = parser.tokenization
-generation   = parser.generation
+
+## DATASET INFO
+inp_len = parser.inp_len
+tar_len = parser.tar_len
 
 ## MODEL PARAMETERS
 encoders = parser.encoders
@@ -64,7 +76,6 @@ verbose = parser.verbose
 
 ## ASSERTS
 assert d_model % heads == 0
-assert generation in ['sampling', 'beam_search', None]
 
 ######################### OUTPUT FOLDER ###########################
 
@@ -77,14 +88,17 @@ if not os.path.exists(out_path):
 
 if os.path.isfile(f"{out_path}{comedy_name}_{tokenization}/dataloader.pkl"):
   dataloader = DataLoader(from_pickle = out_path,
-                        comedy_name = comedy_name,
-                        tokenization = tokenization,
-                        verbose = verbose)
-  print(dataloader)
+                          comedy_name = comedy_name,
+                          tokenization = tokenization,
+                          inp_len = inp_len,
+                          tar_len = tar_len,
+                          verbose = verbose)
 else:
   dataloader = DataLoader(in_path=in_path,
                           comedy_name=comedy_name,
                           tokenization=tokenization,
+                          inp_len = inp_len,
+                          tar_len = tar_len,
                           repetitions_production=epochs_production,
                           repetitions_comedy=epochs_comedy,
                           verbose = verbose)
@@ -99,6 +113,7 @@ generator = Generator(dataloader = dataloader,
                       dff = dff,
                       heads = heads,
                       dropout = dropout,
+                      stop = stop,
                       verbose = verbose)
 
 # Print comedy samples
@@ -113,28 +128,29 @@ generator.train_model(checkpoint = checkpoint,
 
 ########################### GENERATIONS ###########################
 
-if generation:
+# CHOOSE STARTING TERCET
+start = dataloader.get_comedy_start()
+print("\nstart:\n", np.array(start))
 
-  # CHOOSE STARTING TERCET
-  start = dataloader.get_comedy_start()
-  print("start:\n", np.array(start))
+for generation_type in ['sampling', 'beam_search']:
 
   # CHOOSE LIST OF TEMPERATURES (ONE GENERATION FOR EACH TEMPERATURE)
-  if generation == 'sampling':
+  if generation_type == 'sampling':
+    # temperatures = np.round(np.linspace(0.5, 1.25, num=4), 2)
     temperatures = np.round(np.linspace(0.7, 1.3, num=5), 2)
-  elif generation == 'beam_search':
+  elif generation_type == 'beam_search':
     temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 
   # START GENERATION
-  for ckpt_production in range(0, epochs_production+1, checkpoint):
-    for ckpt_comedy in range(0, epochs_comedy+1, checkpoint):
+  for ckpt_production in range(epochs_production, -1, -checkpoint):
+    for ckpt_comedy in range(epochs_comedy, -1, -checkpoint):
       
-      generator.epochs['production'] = min(ckpt_production, epochs_production)
-      generator.epochs['comedy'] = min(ckpt_comedy, epochs_comedy)
+      generator.epochs['production'] = ckpt_production
+      generator.epochs['comedy'] = ckpt_comedy
 
       if os.path.isdir(generator.get_model_folder(out_path)):
           print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
           generator.load(out_path, verbose=False)
-          log = generator.generate_from_tercet(start, temperatures, 100, generation)
-          generator.save_generations(out_path, verbose=False)
-          generator.generations_table(out_path, verbose=False)
+          log = generator.generate_from_tercet(start, temperatures, 100, generation_type)
+          generator.save_generations(out_path, generation_type, verbose=False)
+          # generator.generations_table(out_path, verbose=False)

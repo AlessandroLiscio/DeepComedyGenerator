@@ -6,11 +6,13 @@ from src.tokensprocessing import *
 class DataLoader():
 
     def __init__(self,
-                in_path:str = 'data/tokenized/',
-                comedy_name:str = 'comedy',
-                tokenization:str = 'base',
+                comedy_name:str,
+                tokenization:str,
+                inp_len:int,
+                tar_len:int,
                 repetitions_production:int = 0,
                 repetitions_comedy:int = 0,
+                in_path:str = None,
                 from_pickle:str = None,
                 verbose:str = True):
 
@@ -27,12 +29,8 @@ class DataLoader():
         self.tercet_max_len = 0
         self.separator = '|'
 
-        self.pred_size = None
-        self.inp_len = None
-
-        if not tokenization == 'base' and not tokenization == 'spaces':
-            print(f"ERROR: incorrect tokenization parameter '{tokenization}'")
-            return
+        self.inp_len = inp_len
+        self.tar_len = tar_len
 
         if from_pickle:
             self.load(from_pickle, verbose)
@@ -41,7 +39,7 @@ class DataLoader():
             self._read_files(in_path)
             self._init_vocab_and_mappings()
             self._init_datasets()
-            if verbose: print(self)
+        if verbose: print(self)
 
     def __str__(self):
         return "\n".join((
@@ -50,6 +48,8 @@ class DataLoader():
             f"> PARAMETERS",
             f" - comedy_name: {self.comedy_name}",
             f" - tokenization: {self.tokenization}",
+            f" - inp_len: {self.inp_len}",
+            f" - tar_len: {self.tar_len}",
             f" - separator: {self.separator}",
             f" - repetitions_production: {self.repetitions['production']}",
             f" - repetitions_comedy: {self.repetitions['comedy']}",
@@ -219,19 +219,13 @@ class DataLoader():
             elif dataset_name == "comedy" and self.repetitions[dataset_name] > 0:
 
                 dataset = self.files_dict[self._get_tokenized_filename(self.comedy_name)]
-
-                # TODO: CHOOSE TRAINING OPTION (1-2-1, 3-4-1, 3-6-3)
-                inp_len = 1 # 3, 3
-                tar_len = 2 # 4, 6
-                skip    = 1 # 1, 3
-
-                self.pred_size = skip
+                self.pred_size = self.tar_len - self.inp_len
 
                 # Split input target for Divine Comedy dataset
                 dataset, self.original_lengths[dataset_name], self.tercet_max_len = self._split_input_target(
                     dataset_name = dataset_name,
                     dataset = dataset,
-                    inp_len = inp_len, tar_len = tar_len, skip = skip,
+                    inp_len = self.inp_len, tar_len = self.tar_len, skip = self.pred_size,
                     repetitions = self.repetitions[dataset_name])
 
             self.datasets[dataset_name] = dataset
@@ -297,7 +291,7 @@ class DataLoader():
     ############################################################################
 
     def get_name(self):
-        return f"{self.comedy_name}_{self.tokenization}"
+        return f"{self.comedy_name}_{self.tokenization}_{self.inp_len}_{self.tar_len}"
 
     def save(self, path:str, verbose:bool=False):
 

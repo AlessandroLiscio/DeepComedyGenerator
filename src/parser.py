@@ -4,7 +4,8 @@ class Parser(ArgumentParser):
 
     def __init__(self,
                 in_path, out_path,
-                comedy_name, tokenization, generation,
+                comedy_name, tokenization,
+                inp_len, tar_len,
                 encoders, decoders, heads,
                 d_model, dff, dropout,
                 epochs_production, epochs_comedy, checkpoint,
@@ -18,7 +19,10 @@ class Parser(ArgumentParser):
         ## RUN INFO
         self.comedy_name  = comedy_name
         self.tokenization = tokenization
-        self.generation   = generation
+
+        ## DATASET INFO
+        self.inp_len = inp_len
+        self.tar_len = tar_len
 
         ## MODEL PARAMETERS
         self.encoders = encoders
@@ -48,14 +52,17 @@ class Parser(ArgumentParser):
         self.__add_args__()
         inputs = super().parse_args()
 
-        ## RUN INFO
-        if inputs.comedy_name:  self.comedy_name  = inputs.comedy_name
-        if inputs.tokenization: self.tokenization = inputs.tokenization
-        if inputs.generation:   self.generation   = inputs.generation
-
         ## PATHS
         if inputs.in_path:  self.in_path  = inputs.in_path
         if inputs.out_path: self.out_path = inputs.out_path
+
+        ## RUN INFO
+        if inputs.comedy_name:  self.comedy_name  = inputs.comedy_name
+        if inputs.tokenization: self.tokenization = inputs.tokenization
+
+        ## DATASET INFO
+        if inputs.inp_len: self.inp_len = inputs.inp_len
+        if inputs.tar_len: self.tar_len = inputs.tar_len
         
         ## MODEL PARAMETERS
         if inputs.encoders: self.encoders = inputs.encoders
@@ -75,19 +82,22 @@ class Parser(ArgumentParser):
 
     def __add_args__(self):
 
-        ## DATASET INFO
-        self.add_argument("--comedy_name", type=str,
-                            help="divine comedy filename, without extension")
-        self.add_argument("--tokenization", type=str,
-                            help="tokenization method. Must be either 'base' or 'spaces'")
-        self.add_argument("--generation", type=str,
-                            help="generation method. Must be either 'sampling' or 'beam_search'")
-
         ## PATHS
         self.add_argument("--in_path", type=str,
                             help="path of the folder containing the input files")
         self.add_argument("--out_path", type=str,
                             help="path of the folder containing the output files")
+
+        ## DATASET INFO
+        self.add_argument("--comedy_name", type=str,
+                            help="divine comedy filename, without extension")
+        self.add_argument("--tokenization", type=str,
+                            help="tokenization method. Must be either 'base' or 'spaces'")
+
+        self.add_argument("--inp_len", type=int,
+                            help="number of verses input to the model")
+        self.add_argument("--tar_len", type=int,
+                            help="number of verses target for the model")
 
         ## MODEL PARAMETERS
         self.add_argument("--encoders", type=int,
