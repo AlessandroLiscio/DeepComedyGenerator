@@ -214,7 +214,7 @@ class Generator():
 
         # eov mask
         eov_mask = tf.math.equal(real, self.dataloader.eov)
-        eov_mask = tf.where(eov_mask, 5.0, 1.0)
+        eov_mask = tf.where(eov_mask, 15.0, 1.0)
         eov_mask = tf.cast(eov_mask, dtype=loss_.dtype)
 
         # apply mask to loss tensor
