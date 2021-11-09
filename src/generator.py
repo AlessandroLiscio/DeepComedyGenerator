@@ -369,7 +369,7 @@ class Generator():
 
         try:
 
-            for _ in range(n_verses)
+            for _ in range(n_verses):
 
                 # pad the input list to reach the max_len
                 input_sequence = list(
@@ -381,9 +381,9 @@ class Generator():
 
                 # generate one verse
                 generated, _ = self._generation_step(input_sequence,
-                                                        max_len = max_len,
-                                                        temperature = temperature,
-                                                        generation_type = generation_type)
+                                                    max_len = max_len,
+                                                    temperature = temperature,
+                                                    generation_type = generation_type)
 
                 # print('\n', len(generated))
                 # print(generated)
