@@ -220,9 +220,6 @@ class Generator():
         # apply mask to loss tensor
         loss_ *= eov_mask
 
-        # returns a single float value representing the loss value
-        return tf.reduce_sum(loss_) / tf.reduce_sum(mask)
-
         ########## SYLLS SCORE ##########
 
         # # real target syllables
@@ -239,7 +236,10 @@ class Generator():
         # sylls_score = abs(real_sylls - pred_sylls) / real_sylls
 
         # sylls_score = real_sylls / (real_sylls - abs(real_sylls - pred_sylls) )
-        # return tf.reduce_sum(loss_) / tf.reduce_sum(mask) * sylls_score        
+        # return tf.reduce_sum(loss_) / tf.reduce_sum(mask) * sylls_score
+
+        # returns a single float value representing the loss value
+        return tf.reduce_sum(loss_) / tf.reduce_sum(mask)
 
     ############################################################################
     ##################            SAVE AND LOAD           ######################
