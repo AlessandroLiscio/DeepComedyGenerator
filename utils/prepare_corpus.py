@@ -3,10 +3,10 @@ import re
 # PARAMETERS
 lower = True
 no_punct = True
-space_is_token = False
+space_is_token = True
 use_tercets = False
 add_tags = False
-use_initial_spaces = True
+use_initial_spaces = False
 
 # GLOBALS
 sep = "|"
@@ -32,8 +32,12 @@ def remove_multiple_spaces(v):
 
 def tokenize_spaces(v):
     # remove initial and final spaces
-    v = v.replace(" ", "| ")
+    v = v.replace(" |", "| |")
+    v = v.replace("’ ", "’| |") 
+    v = re.sub(r"([aeiouAEIOU])([ ])([aeiouAEIOU])", r"\g<1>|\g<2>|\g<3>", v)   # break synalephe
     v = re.sub(r"([|][ ])([^|])", r"\g<1>|\g<2>", v)
+    v = re.sub(r"([ ])([’][A-Za-z])", r"\g<1>|\g<2>", v)                # che ’n|nan|zi| --> che| |’n|nan|zi|
+    v = re.sub(r"([A-Za-z])([ ][|][’])", r"\g<1>|\g<2>", v) 
     return v
 
 
@@ -94,7 +98,13 @@ with open(dest_path, "w", encoding="utf-8") as f:
     for verse in prepared_corpus:
         f.write(verse + "\n")
         syllables = verse.split("|")
-        n_syll = len(syllables)
+        
+        if tokenize_spaces:
+            n_syll = len([s for s in syllables if s != " "])
+        else:
+            n_syll = len(syllables)
+        
+        
         if n_syll in verses_lenght:
             verses_lenght[n_syll][0] += 1
         else:
@@ -105,6 +115,10 @@ with open(dest_path, "w", encoding="utf-8") as f:
 
 print("\n\n")
 for n in verses_lenght:
-    print("{:>3}-syll verses:\t {:>6} ({:>7.3f} %)\t sample: {}".format(n, verses_lenght[n][0], round(verses_lenght[n][0]/tot_verses*100, 3), [verses_lenght[n][1]]))
+    print("{:>3}-syll verses:\t {:>6} ({:>7.3f} %)\t sample: {}".format(
+        n, 
+        verses_lenght[n][0], 
+        round(verses_lenght[n][0]/tot_verses*100, 3), 
+        [verses_lenght[n][1]]))
 
 print("\n vocab lenght: ", len(vocab))
