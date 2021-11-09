@@ -9,7 +9,7 @@ import json
 verbose = False
 
 log = False
-in_path = '../data/tokenized/tercets/' # "verses" or "tercets" does not matter
+in_path = '../data/tokenized/sov/' # "verses" or "tercets" does not matter
 out_path = '../data/vocabs/'
 
 if not os.path.exists(out_path):
