@@ -112,7 +112,7 @@ for ckpt_production in range(parser.epochs_production, -1, -parser.checkpoint):
         
         # CHOOSE LIST OF TEMPERATURES (ONE GENERATION FOR EACH TEMPERATURE)
         if generation_type == 'sampling':
-          temperatures = np.round(np.linspace(0.5, 1.0, num=5), 1)
+          temperatures = np.round(np.linspace(0.5, 1.0, num=6), 1)
         elif generation_type == 'beam_search':
           temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 
