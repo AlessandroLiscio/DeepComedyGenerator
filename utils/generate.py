@@ -30,7 +30,7 @@ parser = Parser(in_path=in_path,
                 out_path=out_path,
 
                 comedy_name='comedy_np', # ['comedy_np', 'comedy_11_np']
-                tokenization='base', # ['base', 'es', 'is_es']
+                tokenization='base', # ['base', 'es', 'is-es']
 
                 inp_len=3,
                 tar_len=4,
@@ -45,6 +45,7 @@ parser = Parser(in_path=in_path,
                 epochs_production=0,
                 epochs_comedy=150,
                 checkpoint=10,
+                padding='pre',
 
                 weight_eov=1.0,
                 weight_sot=1.0,
@@ -62,11 +63,14 @@ if not os.path.exists(parser.out_path):
 
 ########################### DATALOADER ###########################
 
-dataloader = DataLoader(from_pickle = parser.out_path,
-                        comedy_name = parser.comedy_name,
-                        tokenization = parser.tokenization,
+dataloader = DataLoader(in_path=parser.in_path,
+                        comedy_name=parser.comedy_name,
+                        tokenization=parser.tokenization,
                         inp_len = parser.inp_len,
                         tar_len = parser.tar_len,
+                        repetitions_production=parser.epochs_production,
+                        repetitions_comedy=parser.epochs_comedy,
+                        padding=parser.padding,
                         verbose = parser.verbose)
 
 ############################ GENERATOR ############################
@@ -79,7 +83,7 @@ generator = Generator(dataloader = dataloader,
                       heads = parser.heads,
                       dropout = parser.dropout,
                       weight_eov = parser.weight_eov,
-                      weight_sot  = parser.weight_sot,
+                      weight_sot = parser.weight_sot,
                       stop = stop,
                       verbose = parser.verbose)
 
@@ -107,13 +111,12 @@ for ckpt_production in range(parser.epochs_production, -1, -parser.checkpoint):
         # temperatures = np.round(np.linspace(0.7, 1.3, num=5), 2)
         temperatures = np.round(np.linspace(0.5, 1.0, num=5), 1)
         # temperatures = np.round(np.linspace(0.1, 1.0, num=10), 1)
-
       elif generation_type == 'beam_search':
         temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 
       if os.path.isdir(generator.get_model_folder(parser.out_path)):
           print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
-          generator.load(parser.out_path, verbose=True)
+          generator.load(parser.out_path, verbose=False)
           log = generator.generate_from_tercet(start, temperatures, generation_type, 100)
           generator.save_generations(parser.out_path, generation_type, verbose=False)
           # generator.generations_table(parser.out_path, verbose=False)

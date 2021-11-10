@@ -288,8 +288,7 @@ class Generator():
 
         # save weights
         self.model.save_weights(path)
-        path = path.replace("weights/", "")
-        if verbose: print("\n> Saved weights to checkpoint", path)
+        if verbose: print("\n> Saved weights to checkpoint", path.replace("weights/", ""))
 
     def load_model_weights(self, path: str, verbose: bool = True):
 
@@ -298,8 +297,8 @@ class Generator():
 
         path = self.get_model_folder(path) + "weights/"
         self.model.load_weights(path)
-        path = path.replace("weights/", "")
-        if verbose: print("\n> Loaded weights from checkpoint", path)
+
+        if verbose: print("\n> Loaded weights from checkpoint", path.replace("weights/", ""))
 
     def load_log(self, path: str, verbose: bool = True):
 
@@ -366,7 +365,7 @@ class Generator():
     def _generate(self, start, generation_type:str, n_verses: int = 100, temperature: int = 1.0):
 
         '''generates 'n_verses' verses, starting from input 'start', where every 
-        verse has at most 'self.dataloader.max_len' tokens. The generation probability is 
+        verse has at most 'self.dataloader.tercet_max_len' tokens. The generation probability is 
         influenced by the temperature: the higher the temperature, the more 
         original (or crazy) is the text.'''
 
@@ -374,8 +373,8 @@ class Generator():
         def update_input_sequence(sequence):
             for i, token in enumerate(sequence):
                 if token in self.stop:
-                    sequence = [tok for tok in sequence if tok != 0]
                     sequence = sequence[i+1:]
+                    sequence = [tok for tok in sequence if tok != self.dataloader.pad]
                     # print('\n',sequence)
                     return sequence
 
@@ -383,9 +382,9 @@ class Generator():
         input_sequence = start.copy()
         output = []
 
-        for _ in range(n_verses+1):
+        for _ in range(n_verses):
 
-            # pad the input list to reach the max_len
+            # pad the input list to reach the maximum length
             input_sequence = list(
                 tf.keras.preprocessing.sequence.pad_sequences(
                     [input_sequence],
@@ -393,16 +392,16 @@ class Generator():
                     padding=self.dataloader.padding)[0])
 
             # print('\n', clear_text(ints_to_text(input_sequence, self.dataloader.idx2str)))
-            # print(np.array(input_sequence))
+            # print(input_sequence)
 
             # generate one verse
             generated, _ = self._generation_step(input_sequence,
                                                 generation_type = generation_type,
                                                 temperature = temperature)
 
-            print('\n', len(generated))
-            print(generated)
-            print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
+            # print('\n', len(generated))
+            # print(generated)
+            # print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
 
             # update the input sequence
             input_sequence += generated
@@ -415,7 +414,7 @@ class Generator():
 
         return output
 
-    def _generation_step(self, input_sequence, generation_type, max_len:int=100, temperature:int=1.0):
+    def _generation_step(self, input_sequence, generation_type, temperature:int=1.0):
 
         '''generate tokens, starting from 'input_sequence'.'''
 
@@ -429,7 +428,7 @@ class Generator():
             output = []
 
             # we repeat the process to get the entire verse (end-of-verse token is predicted)
-            for i in range(max_len):
+            for i in range(self.dataloader.tercet_max_len):
 
                 enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
                 logits, attention_weights = self.model(
@@ -456,7 +455,6 @@ class Generator():
             
             beams, attention_weights = self.beam_search_decoder(encoder_input,
                                                                 decoder_input,
-                                                                max_len,
                                                                 beam_width=5,
                                                                 verbose=False)
 
@@ -472,7 +470,7 @@ class Generator():
     ######################          BEAM SEARCH          #######################
     ############################################################################
 
-    def beam_search_decoder(self, encoder_input, decoder_input, max_len:int, beam_width:int=5, verbose:bool=False):
+    def beam_search_decoder(self, encoder_input, decoder_input, beam_width:int=5, verbose:bool=False):
 
         tokens, probabilities, attention_weights = self._beam_search_decoding_step(encoder_input, decoder_input, beam_width)
         beams = [[[token], prob] for (token, prob) in zip(tokens, probabilities)]
@@ -480,7 +478,7 @@ class Generator():
         if verbose:
             print(f'\nbeams: {beams}')
 
-        for i in range(max_len):
+        for i in range(self.dataloader.tercet_max_len):
             candidates = []
 
             for j, [beam, prob] in enumerate(beams):

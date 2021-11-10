@@ -166,7 +166,7 @@ class DataLoader():
         self.str2idx = {u:i for i, u in enumerate(self.vocab)}
         self.idx2str = np.array(self.vocab)
 
-        self.padding =  self.str2idx['']
+        self.pad =  self.str2idx['']
         self.sov = self.str2idx['<v>']
         self.eov = self.str2idx['</v>']
         self.sot = self.str2idx['<t>']
