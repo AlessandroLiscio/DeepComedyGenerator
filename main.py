@@ -12,17 +12,17 @@ from src.dataloader import DataLoader
 dataset = 'sov_sot' # one of the folders in "data/tokenized/"
 stop = ['</v>', '</t>'] # generation stopping characters
 
-## LOCAL
-in_path  = f'data/tokenized/{dataset}/'
-out_path  = "results/"
+# ## LOCAL
+# in_path  = f'data/tokenized/{dataset}/'
+# out_path  = "results/"
 
 # ## SLURM
 # in_path  = f'data/tokenized/{dataset}/'
 # out_path  = '../../../../../public/liscio.alessandro/results/'
 
-# ## COLAB
-# in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{dataset}/' 
-# out_path = '/content/drive/MyDrive/DC-gen/results/'
+## COLAB
+in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{dataset}/' 
+out_path = '/content/drive/MyDrive/DC-gen/results/'
 
 parser = Parser(in_path=in_path,
                 out_path=out_path,
@@ -41,11 +41,11 @@ parser = Parser(in_path=in_path,
                 dropout=0.2,
 
                 epochs_production=0,
-                epochs_comedy=100,
+                epochs_comedy=150,
                 checkpoint=10,
 
-                weight_eov=10.0,
-                weight_sot=10.0,
+                weight_eov=1.0,
+                weight_sot=1.0,
 
                 verbose=True)
 
@@ -120,7 +120,8 @@ for ckpt_production in range(parser.epochs_production, -1, -parser.checkpoint):
       # CHOOSE LIST OF TEMPERATURES (ONE GENERATION FOR EACH TEMPERATURE)
       if generation_type == 'sampling':
         # temperatures = np.round(np.linspace(0.5, 1.25, num=4), 2)
-        temperatures = np.round(np.linspace(0.7, 1.3, num=5), 2)
+        # temperatures = np.round(np.linspace(0.7, 1.3, num=5), 2)
+        temperatures = np.round(np.linspace(0.5, 1.0, num=5), 1)
       elif generation_type == 'beam_search':
         temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 

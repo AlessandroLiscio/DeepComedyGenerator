@@ -206,12 +206,14 @@ class Generator():
 
         ######### DEFAULT ########
 
-        # "mask" is a boolean tensor with False values on padding values (0 values) 
-        mask = tf.math.logical_not(tf.math.equal(real, 0))
         # "loss_" is a tensor of float values
         loss_ = self.loss_object(real, pred)
+
+        # "mask" is a boolean tensor with False values on padding values (0 values) 
+        mask = tf.math.logical_not(tf.math.equal(real, 0))
         # convert mask boolean values to float (False=0. and True=1.)
         mask = tf.cast(mask, dtype=loss_.dtype)
+
         # apply mask to loss tensor
         loss_ *= mask
 
@@ -255,7 +257,7 @@ class Generator():
 
         # returns a single float value representing the loss value
         
-        return tf.reduce_sum(loss_) / (tf.reduce_sum(mask)+tf.reduce_sum(eov_mask)+tf.reduce_sum(sot_mask))
+        return tf.reduce_sum(loss_) / tf.reduce_sum(mask)
 
     ############################################################################
     ##################            SAVE AND LOAD           ######################
@@ -374,7 +376,10 @@ class Generator():
         def update_input_sequence(sequence):
             for i, token in enumerate(sequence):
                 if token in self.stop:
-                    return sequence[i+1:]
+                    sequence = [tok for tok in sequence if tok != 0]
+                    sequence = sequence[i+1:]
+                    # print('\n',sequence)
+                    return sequence
 
         # variables initialization
         input_sequence = start.copy()
@@ -391,7 +396,8 @@ class Generator():
                         maxlen=max_len,
                         padding='post')[0])
 
-                # print(clear_text(ints_to_text(input_sequence, self.dataloader.idx2str)))
+                # print('\n', clear_text(ints_to_text(input_sequence, self.dataloader.idx2str)))
+                # print(np.array(input_sequence))
 
                 # generate one verse
                 generated, _ = self._generation_step(input_sequence,
@@ -404,11 +410,8 @@ class Generator():
                 # print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
 
                 # update the input sequence
-                if self.dataloader.pred_size == 1:
-                    input_sequence += generated
-                    input_sequence = update_input_sequence(input_sequence)
-                else:
-                    input_sequence = generated
+                input_sequence += generated
+                input_sequence = update_input_sequence(input_sequence)
 
                 if input_sequence == None:
                     return output
