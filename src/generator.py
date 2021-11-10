@@ -396,8 +396,8 @@ class Generator():
                         maxlen=max_len,
                         padding='post')[0])
 
-                # print('\n', clear_text(ints_to_text(input_sequence, self.dataloader.idx2str)))
-                # print(np.array(input_sequence))
+                print('\n', clear_text(ints_to_text(input_sequence, self.dataloader.idx2str)))
+                print(np.array(input_sequence))
 
                 # generate one verse
                 generated, _ = self._generation_step(input_sequence,

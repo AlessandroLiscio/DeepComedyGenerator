@@ -56,8 +56,8 @@ class DataLoader():
             f" - original_length_production: {self.original_lengths['production']}",
             f" - original_length_comedy: {self.original_lengths['comedy']}",
             f" - tercet_max_len: {self.tercet_max_len}",
-            "> TRAINING ORDER",
-            "\n".join(([f" {i+1}- {self._get_clean_filename(filename)}" for i, filename in enumerate(self.train_order)])),
+            # "> TRAINING ORDER",
+            # "\n".join(([f" {i+1}- {self._get_clean_filename(filename)}" for i, filename in enumerate(self.train_order)])),
             "> VOCABULARY",
             "\n".join(([f" - {key}: {attr}" for key, attr in self.vocab_info.items()])),
             ""
@@ -147,13 +147,9 @@ class DataLoader():
         # sort groups
         # special_tokens = sorted(special_tokens, key=len)
         punctuation = sorted(punctuation, key=ord)
-        start_sylls = sorted(start_sylls, key=lambda x: (-len(x), x))
-        mid_sylls   = sorted(mid_sylls, key=lambda x: (-len(x), x))
-        end_sylls   = sorted(end_sylls, key=lambda x: (-len(x), x))
-
-        # print("WEIRD SYLLABLES:\n", weird_sylls)
-        # print("STARTING SYLLABLES:\n", start_sylls)
-        # print("ENDING SYLLABLES:\n", end_sylls)
+        start_sylls = sorted(start_sylls, key=lambda x: (len(x), x))
+        mid_sylls   = sorted(mid_sylls, key=lambda x: (len(x), x))
+        end_sylls   = sorted(end_sylls, key=lambda x: (len(x), x))
 
         # create the tokens vocabulary following the order
         for group in [special_tokens, punctuation, start_sylls, mid_sylls, end_sylls]:
@@ -183,7 +179,15 @@ class DataLoader():
         self.eov = self.str2idx['</v>']
         self.sot = self.str2idx['<t>']
         self.eot = self.str2idx['</t>']
-        self.alphas_start = len(special_tokens)+len(punctuation)+1
+        self.alphas_start = len(special_tokens)+len(punctuation)
+
+        # print(self.alphas_start)
+        # print(self.idx2str[self.alphas_start])
+        # print(self.idx2str[self.alphas_start-1])
+
+        # print("WEIRD SYLLABLES:\n", weird_sylls)
+        # print("STARTING SYLLABLES:\n", start_sylls)
+        # print("ENDING SYLLABLES:\n", end_sylls)
 
     # Returns set of syllales from input list of verses
     def _verses_to_tokens_set(self, verses_list, verbose:bool=False):
