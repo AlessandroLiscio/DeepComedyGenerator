@@ -120,6 +120,12 @@ class Generator():
 
         for (batch, (inp, tar)) in enumerate(dataset):
 
+            # skip epochs if pretrained
+            if batch < self.epochs[dataset_name]*original_length:
+                if batch != 0 and batch % original_length == 0:
+                    epoch += 1
+                continue
+
             # update gradients
             self._train_step(inp, tar)
 
