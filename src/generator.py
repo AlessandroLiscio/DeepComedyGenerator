@@ -21,11 +21,12 @@ _train_step_signature = [
 class Generator():
 
     def __init__(self, dataloader,
-                 encoders: int = 5, decoders: int = 5, heads: int = 4,
-                 d_model: int = 256, dff: int = 512, dropout: float = 0.2,
-                 epochs_production: int = 0, epochs_comedy: int = 0,
-                 stop = ['</v>'],
-                 verbose: bool = True):
+                encoders:int=5, decoders:int=5, heads:int=4,
+                d_model:int=256, dff:int=512, dropout:float=0.2,
+                epochs_production:int=0, epochs_comedy:int=0,
+                weight_eov:float=1.0, weight_sot:float=1.0,
+                stop=['</v>'],
+                verbose:bool=True):
 
         # initialize epochs
         self.epochs = {'production': 0, 'comedy': 0}
@@ -51,6 +52,8 @@ class Generator():
         self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
         self.train_loss = tf.keras.metrics.Mean(name='train_loss')
         self.train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
+        self.weight_eov = weight_eov
+        self.weight_sot = weight_sot
 
         # generation_step stop tokens
         self.stop = [self.dataloader.str2idx[stopper] for stopper in stop]
@@ -74,6 +77,8 @@ class Generator():
             f" - optimizer: {str(type(self.optimizer))[:-2].split('.')[-1]}",
             f" - loss: {str(type(self.loss_object))[:-2].split('.')[-1]}",
             f" - metric: {str(type(self.train_accuracy))[:-2].split('.')[-1]}",
+            f" - weight_eov: {self.weight_eov}",
+            f" - weight_sot: {self.weight_sot}",
             f" - epochs_production: {self.epochs['production']}",
             f" - epochs_comedy: {self.epochs['comedy']}",
             ""
@@ -214,11 +219,21 @@ class Generator():
 
         # eov mask
         eov_mask = tf.math.equal(real, self.dataloader.eov)
-        eov_mask = tf.where(eov_mask, 15.0, 1.0)
+        eov_mask = tf.where(eov_mask, self.weight_eov, 1.0)
         eov_mask = tf.cast(eov_mask, dtype=loss_.dtype)
 
         # apply mask to loss tensor
         loss_ *= eov_mask
+
+        ######### SOT MASK #########
+
+        # eov mask
+        sot_mask = tf.math.equal(real, self.dataloader.sot)
+        sot_mask = tf.where(sot_mask, self.weight_sot, 1.0)
+        sot_mask = tf.cast(sot_mask, dtype=loss_.dtype)
+
+        # apply mask to loss tensor
+        loss_ *= sot_mask
 
         ########## SYLLS SCORE ##########
 
@@ -239,7 +254,8 @@ class Generator():
         # return tf.reduce_sum(loss_) / tf.reduce_sum(mask) * sylls_score
 
         # returns a single float value representing the loss value
-        return tf.reduce_sum(loss_) / tf.reduce_sum(mask)
+        
+        return tf.reduce_sum(loss_) / (tf.reduce_sum(mask)+tf.reduce_sum(eov_mask)+tf.reduce_sum(sot_mask))
 
     ############################################################################
     ##################            SAVE AND LOAD           ######################
@@ -574,7 +590,9 @@ class Generator():
             f"{self.model.num_layers_decoder}",
             f"{self.model.num_heads}",
             f"{self.model.d_model}",
-            f"{self.model.dff}"
+            f"{self.model.dff}",
+            f"{self.weight_eov}",
+            f"{self.weight_sot}"
         ))
 
     def get_checkpoint_name(self):
