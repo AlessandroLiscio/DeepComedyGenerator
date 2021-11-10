@@ -12,17 +12,17 @@ from src.dataloader import DataLoader
 dataset = 'sov_sot' # one of the folders in "data/tokenized/"
 stop = ['</v>'] # generation stopping characters
 
-## LOCAL
-in_path  = f'data/tokenized/{dataset}/'
-out_path  = "results/"
+# ## LOCAL
+# in_path  = f'data/tokenized/{dataset}/'
+# out_path  = "results/"
 
 # ## SLURM
 # in_path  = f'data/tokenized/{dataset}/'
 # out_path  = '../../../../../public/liscio.alessandro/results/'
 
-# # COLAB
-# in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{dataset}/' 
-# out_path = '/content/drive/MyDrive/DC-gen/results/'
+# COLAB
+in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{dataset}/' 
+out_path = '/content/drive/MyDrive/DC-gen/results/'
 
 parser = Parser(in_path=in_path,
                 out_path=out_path,
@@ -109,19 +109,22 @@ for ckpt_production in range(parser.epochs_production, -1, -parser.checkpoint):
     generator.epochs['production'] = ckpt_production
     generator.epochs['comedy'] = ckpt_comedy
 
-    for generation_type in ['sampling', 'beam_search']:
+    if os.path.isdir(generator.get_model_folder(parser.out_path)):
+      
+      print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
+      generator.load(parser.out_path, verbose=False)
 
-      # CHOOSE LIST OF TEMPERATURES (ONE GENERATION FOR EACH TEMPERATURE)
-      if generation_type == 'sampling':
-        temperatures = np.round(np.linspace(0.5, 1.0, num=5), 1)
-      elif generation_type == 'beam_search':
-        temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
+      for generation_type in ['sampling', 'beam_search']:
+        
+        # CHOOSE LIST OF TEMPERATURES (ONE GENERATION FOR EACH TEMPERATURE)
+        if generation_type == 'sampling':
+          temperatures = np.round(np.linspace(0.5, 1.0, num=5), 1)
+        elif generation_type == 'beam_search':
+          temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
 
-      if os.path.isdir(generator.get_model_folder(parser.out_path)):
-          print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
-          generator.load(parser.out_path, verbose=False)
-          log = generator.generate_from_tercet(start, temperatures, generation_type, 100)
-          generator.save_generations(parser.out_path, generation_type, verbose=False)
-          # generator.generations_table(parser.out_path, verbose=False)
+        print(f"\n> {generation_type.upper()}")
+        log = generator.generate_from_tercet(start, temperatures, generation_type, 100)
+        generator.save_generations(parser.out_path, generation_type, verbose=False)
+        # generator.generations_table(parser.out_path, verbose=False)
 
 ########################### END ###########################

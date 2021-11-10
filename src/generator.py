@@ -121,7 +121,7 @@ class Generator():
         for (batch, (inp, tar)) in enumerate(dataset):
 
             # skip epochs if pretrained
-            if batch < self.epochs[dataset_name]*original_length:
+            if batch <= self.epochs[dataset_name]*original_length:
                 if batch != 0 and batch % original_length == 0:
                     epoch += 1
                 continue
@@ -223,23 +223,23 @@ class Generator():
 
         ######### EOV MASK #########
 
-        # # eov mask
-        # eov_mask = tf.math.equal(real, self.dataloader.eov)
-        # eov_mask = tf.where(eov_mask, self.weight_eov, 1.0)
-        # eov_mask = tf.cast(eov_mask, dtype=loss_.dtype)
+        # eov mask
+        eov_mask = tf.math.equal(real, self.dataloader.eov)
+        eov_mask = tf.where(eov_mask, self.weight_eov, 1.0)
+        eov_mask = tf.cast(eov_mask, dtype=loss_.dtype)
 
-        # # apply mask to loss tensor
-        # loss_ *= eov_mask
+        # apply mask to loss tensor
+        loss_ *= eov_mask
 
         ######### SOT MASK #########
 
-        # # eov mask
-        # sot_mask = tf.math.equal(real, self.dataloader.sot)
-        # sot_mask = tf.where(sot_mask, self.weight_sot, 1.0)
-        # sot_mask = tf.cast(sot_mask, dtype=loss_.dtype)
+        # eov mask
+        sot_mask = tf.math.equal(real, self.dataloader.sot)
+        sot_mask = tf.where(sot_mask, self.weight_sot, 1.0)
+        sot_mask = tf.cast(sot_mask, dtype=loss_.dtype)
 
-        # # apply mask to loss tensor
-        # loss_ *= sot_mask
+        # apply mask to loss tensor
+        loss_ *= sot_mask
 
         ########## SYLLS SCORE ##########
 
