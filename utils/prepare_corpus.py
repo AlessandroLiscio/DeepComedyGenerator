@@ -34,10 +34,13 @@ def tokenize_spaces(v):
     # remove initial and final spaces
     v = v.replace(" |", "| |")
     v = v.replace("’ ", "’| |") 
-    v = re.sub(r"([aeiouAEIOU])([ ])([aeiouAEIOU])", r"\g<1>|\g<2>|\g<3>", v)   # break synalephe
+    v = re.sub(r"([aeiouAEIOàáèéìíòóùú])([ ])([aeiouAEIOàáèéìíòóùú])", r"\g<1>|\g<2>|\g<3>", v)   # break synalephe
     v = re.sub(r"([|][ ])([^|])", r"\g<1>|\g<2>", v)
     v = re.sub(r"([ ])([’][A-Za-z])", r"\g<1>|\g<2>", v)                # che ’n|nan|zi| --> che| |’n|nan|zi|
-    v = re.sub(r"([A-Za-z])([ ][|][’])", r"\g<1>|\g<2>", v) 
+    v = re.sub(r"([aeiouAEIOàáèéìíòóùú])([ ][|][’])", r"\g<1>|\g<2>", v) 
+    v = re.sub(r"([aeiouAEIOàáèéìíòóùú])([ ])", r"\g<1>|\g<2>", v)
+    v = re.sub(r"([|][ ])([A-Za-zàáèéìíòóùúë])", r"\g<1>|\g<2>", v)
+    v = v.replace("| ’|", "| |’|")
     return v
 
 
@@ -122,3 +125,7 @@ for n in verses_lenght:
         [verses_lenght[n][1]]))
 
 print("\n vocab lenght: ", len(vocab))
+
+for token in vocab: 
+    if " " in token: 
+        print([token])
