@@ -147,10 +147,11 @@ class DataLoader():
         # sort groups
         # special_tokens = sorted(special_tokens, key=len)
         punctuation = sorted(punctuation, key=ord)
-        start_sylls = sorted(start_sylls, key=len)
-        mid_sylls   = sorted(mid_sylls, key=len)
-        end_sylls   = sorted(end_sylls, key=len)
+        start_sylls = sorted(start_sylls, key=lambda x: (-len(x), x))
+        mid_sylls   = sorted(mid_sylls, key=lambda x: (-len(x), x))
+        end_sylls   = sorted(end_sylls, key=lambda x: (-len(x), x))
 
+        print(mid_sylls)
         # print("WEIRD SYLLABLES:\n", weird_sylls)
         # print("STARTING SYLLABLES:\n", start_sylls)
         # print("ENDING SYLLABLES:\n", end_sylls)
