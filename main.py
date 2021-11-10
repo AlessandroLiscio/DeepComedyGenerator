@@ -12,17 +12,17 @@ from src.dataloader import DataLoader
 dataset = 'sov_sot' # one of the folders in "data/tokenized/"
 stop = ['</v>', '</t>'] # generation stopping characters
 
-# ## LOCAL
-# in_path  = f'data/tokenized/{dataset}/'
-# out_path  = "results/"
+## LOCAL
+in_path  = f'data/tokenized/{dataset}/'
+out_path  = "results/"
 
 # ## SLURM
 # in_path  = f'data/tokenized/{dataset}/'
 # out_path  = '../../../../../public/liscio.alessandro/results/'
 
-## COLAB
-in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{dataset}/' 
-out_path = '/content/drive/MyDrive/DC-gen/results/'
+# ## COLAB
+# in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{dataset}/' 
+# out_path = '/content/drive/MyDrive/DC-gen/results/'
 
 parser = Parser(in_path=in_path,
                 out_path=out_path,
@@ -93,7 +93,7 @@ generator = Generator(dataloader = dataloader,
                       verbose = parser.verbose)
 
 # Print comedy samples
-dataloader.print_comedy_samples(5, text=True, ints=True)
+dataloader.print_comedy_samples(1, text=True, ints=True)
 
 # Train model on datasets
 generator.train_model(checkpoint = parser.checkpoint,
