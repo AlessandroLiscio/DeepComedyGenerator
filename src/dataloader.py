@@ -151,7 +151,6 @@ class DataLoader():
         mid_sylls   = sorted(mid_sylls, key=lambda x: (-len(x), x))
         end_sylls   = sorted(end_sylls, key=lambda x: (-len(x), x))
 
-        print(mid_sylls)
         # print("WEIRD SYLLABLES:\n", weird_sylls)
         # print("STARTING SYLLABLES:\n", start_sylls)
         # print("ENDING SYLLABLES:\n", end_sylls)
