@@ -51,4 +51,4 @@ for comedy_name in os.listdir(in_path):
   
   print(" - {:<30}{}".format(f"{comedy_name}_{tokenization}:", dataloader.vocab_info))
 
-  json.dump(out_dict, open(f'{out_path}vocab_{comedy_name}{tokenization}.json', 'w'))
+  json.dump(out_dict, open(f'{out_path}vocab_{comedy_name}_{tokenization}.json', 'w'))
