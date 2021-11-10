@@ -10,7 +10,7 @@ from src.dataloader import DataLoader
 ############################ SETUP ############################
 
 dataset = 'sov_sot' # one of the folders in "data/tokenized/"
-stop = ['</v>', '</t>'] # generation stopping characters
+stop = ['</v>'] # generation stopping characters
 
 ## LOCAL
 in_path  = f'data/tokenized/{dataset}/'
@@ -60,23 +60,15 @@ if not os.path.exists(parser.out_path):
 
 ########################### DATALOADER ###########################
 
-if os.path.isfile(f"{parser.out_path}{parser.comedy_name}_{parser.tokenization}/dataloader.pkl"):
-  dataloader = DataLoader(from_pickle = parser.out_path,
-                          comedy_name = parser.comedy_name,
-                          tokenization = parser.tokenization,
-                          inp_len = parser.inp_len,
-                          tar_len = parser.tar_len,
-                          verbose = parser.verbose)
-else:
-  dataloader = DataLoader(in_path=parser.in_path,
-                          comedy_name=parser.comedy_name,
-                          tokenization=parser.tokenization,
-                          inp_len = parser.inp_len,
-                          tar_len = parser.tar_len,
-                          repetitions_production=parser.epochs_production,
-                          repetitions_comedy=parser.epochs_comedy,
-                          verbose = parser.verbose)
-  dataloader.save(parser.out_path)
+dataloader = DataLoader(in_path=parser.in_path,
+                        comedy_name=parser.comedy_name,
+                        tokenization=parser.tokenization,
+                        inp_len = parser.inp_len,
+                        tar_len = parser.tar_len,
+                        repetitions_production=parser.epochs_production,
+                        repetitions_comedy=parser.epochs_comedy,
+                        verbose = parser.verbose)
+dataloader.save(parser.out_path)
 
 ############################ GENERATOR ############################
 
@@ -99,7 +91,7 @@ dataloader.print_comedy_samples(1, text=True, ints=True)
 generator.train_model(checkpoint = parser.checkpoint,
                       out_path = parser.out_path)
 
-# Print training information
+# # Print training information
 # generator.print_training_info()
 
 ########################### GENERATIONS ###########################
@@ -119,8 +111,6 @@ for ckpt_production in range(parser.epochs_production, -1, -parser.checkpoint):
 
       # CHOOSE LIST OF TEMPERATURES (ONE GENERATION FOR EACH TEMPERATURE)
       if generation_type == 'sampling':
-        # temperatures = np.round(np.linspace(0.5, 1.25, num=4), 2)
-        # temperatures = np.round(np.linspace(0.7, 1.3, num=5), 2)
         temperatures = np.round(np.linspace(0.5, 1.0, num=5), 1)
       elif generation_type == 'beam_search':
         temperatures = np.round(np.linspace(1.0, 1.0, num=1), 1)
@@ -128,7 +118,7 @@ for ckpt_production in range(parser.epochs_production, -1, -parser.checkpoint):
       if os.path.isdir(generator.get_model_folder(parser.out_path)):
           print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
           generator.load(parser.out_path, verbose=False)
-          log = generator.generate_from_tercet(start, temperatures, 100, generation_type)
+          log = generator.generate_from_tercet(start, temperatures, generation_type, 100)
           generator.save_generations(parser.out_path, generation_type, verbose=False)
           # generator.generations_table(parser.out_path, verbose=False)
 

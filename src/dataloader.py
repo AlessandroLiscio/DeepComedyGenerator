@@ -104,14 +104,6 @@ class DataLoader():
 
         '''initialize vocabularies and mappings'''
 
-        #############################
-        # final vocabulary order:   #
-        # - special tokens          #
-        # - punctuation             #
-        # - non-ending syllables    #
-        # - ending syllables        #
-        #############################
-
         tokens = sorted(
             set().union(*[self._verses_to_tokens_set(self.files_dict[file_name]) for file_name in self.train_order]),
             key=len)
@@ -129,7 +121,6 @@ class DataLoader():
             # NON-SYLLABLES
             if '<' in token:
                 continue
-                # special_tokens.append(token)
             elif len(token) == 1 and not token.isalpha():
                 punctuation.append(token)
             # SYLLABLES
@@ -145,7 +136,6 @@ class DataLoader():
                         end_sylls.append(token)
 
         # sort groups
-        # special_tokens = sorted(special_tokens, key=len)
         punctuation = sorted(punctuation, key=ord)
         start_sylls = sorted(start_sylls, key=lambda x: (len(x), x))
         mid_sylls   = sorted(mid_sylls, key=lambda x: (len(x), x))
@@ -180,10 +170,6 @@ class DataLoader():
         self.sot = self.str2idx['<t>']
         self.eot = self.str2idx['</t>']
         self.alphas_start = len(special_tokens)+len(punctuation)
-
-        # print(self.alphas_start)
-        # print(self.idx2str[self.alphas_start])
-        # print(self.idx2str[self.alphas_start-1])
 
         # print("WEIRD SYLLABLES:\n", weird_sylls)
         # print("STARTING SYLLABLES:\n", start_sylls)
@@ -239,15 +225,12 @@ class DataLoader():
 
                 # Remove the first tercet, which is used for generation
                 dataset = dataset[3:]
-                
-                # User by the generator
-                pred_size = self.tar_len - self.inp_len
 
                 # Split input target for Divine Comedy dataset
                 dataset, self.original_lengths[dataset_name], self.tercet_max_len = self._split_input_target(
                     dataset_name = dataset_name,
                     dataset = dataset,
-                    inp_len = self.inp_len, tar_len = self.tar_len, skip = pred_size,
+                    inp_len = self.inp_len, tar_len = self.tar_len, skip = 1,
                     repetitions = self.repetitions[dataset_name])
 
             self.datasets[dataset_name] = dataset
@@ -295,14 +278,17 @@ class DataLoader():
 
         # Create dataset from inputs and targets
         dataset = tf.data.Dataset.from_tensor_slices((
-            tf.keras.preprocessing.sequence.pad_sequences(inputs, padding='post'), 
-            tf.keras.preprocessing.sequence.pad_sequences(targets, padding='post')))
+            tf.keras.preprocessing.sequence.pad_sequences(inputs, padding='pre'), 
+            tf.keras.preprocessing.sequence.pad_sequences(targets, padding='pre')))
+
         # cache the dataset to memory to get a speedup while reading from it.
         dataset = dataset.cache()
+
         # create batched dataset and shuffle it
         buffer_size = len(dataset)
-        dataset = dataset.shuffle(buffer_size, reshuffle_each_iteration=True
+        dataset = dataset.shuffle(buffer_size, reshuffle_each_iteration=True, seed=42
                     ).repeat(repetitions).padded_batch(batch_size, drop_remainder=True)
+                    
         # This allows later elements to be prepared while the current is being processed.
         dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
         return buffer_size, dataset

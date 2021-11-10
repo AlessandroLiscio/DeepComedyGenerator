@@ -17,7 +17,6 @@ _train_step_signature = [
     tf.TensorSpec(shape=(None, None), dtype=tf.int32),
 ]
 
-
 class Generator():
 
     def __init__(self, dataloader,
@@ -150,7 +149,7 @@ class Generator():
                 if checkpoint and out_path:
                     if batch != 0 and batch % (original_length * checkpoint) == 0:
                         self.save(out_path, verbose=False)
-
+                        
                 start = time.time()
 
         # Stop timer
@@ -218,23 +217,23 @@ class Generator():
 
         ######### EOV MASK #########
 
-        # eov mask
-        eov_mask = tf.math.equal(real, self.dataloader.eov)
-        eov_mask = tf.where(eov_mask, self.weight_eov, 1.0)
-        eov_mask = tf.cast(eov_mask, dtype=loss_.dtype)
+        # # eov mask
+        # eov_mask = tf.math.equal(real, self.dataloader.eov)
+        # eov_mask = tf.where(eov_mask, self.weight_eov, 1.0)
+        # eov_mask = tf.cast(eov_mask, dtype=loss_.dtype)
 
-        # apply mask to loss tensor
-        loss_ *= eov_mask
+        # # apply mask to loss tensor
+        # loss_ *= eov_mask
 
         ######### SOT MASK #########
 
-        # eov mask
-        sot_mask = tf.math.equal(real, self.dataloader.sot)
-        sot_mask = tf.where(sot_mask, self.weight_sot, 1.0)
-        sot_mask = tf.cast(sot_mask, dtype=loss_.dtype)
+        # # eov mask
+        # sot_mask = tf.math.equal(real, self.dataloader.sot)
+        # sot_mask = tf.where(sot_mask, self.weight_sot, 1.0)
+        # sot_mask = tf.cast(sot_mask, dtype=loss_.dtype)
 
-        # apply mask to loss tensor
-        loss_ *= sot_mask
+        # # apply mask to loss tensor
+        # loss_ *= sot_mask
 
         ########## SYLLS SCORE ##########
 
@@ -315,7 +314,7 @@ class Generator():
     ######################          GENERATION              ####################
     ############################################################################
 
-    def generate_from_tercet(self, tercet, temperatures, n_verses: int = 100, generation_type:str='sampling'):
+    def generate_from_tercet(self, tercet, temperatures, generation_type, n_verses: int = 100):
 
         '''generates 'n_verses' for each temperature, starting from
         input tercet, where every verse has at most 'tercet_max_len' tokens'''
@@ -327,7 +326,7 @@ class Generator():
                     split_tokens(tercet, self.dataloader.separator),
                     self.dataloader.str2idx))],
             maxlen=self.dataloader.tercet_max_len,
-            padding='post')[0])
+            padding='pre')[0])
 
         # print("\nStart:\n", np.array(tercet))        
         print("\nGenerating new cantica: ")
@@ -343,10 +342,10 @@ class Generator():
 
             # generate cantica
             generated = self._generate(start = start,
-                                        max_len = self.dataloader.tercet_max_len,
+                                        generation_type = generation_type,
                                         n_verses = n_verses,
-                                        temperature = temp,
-                                        generation_type = generation_type)
+                                        temperature = temp
+                                        )
 
             # decode the generated cantica and remove special tokens
             generated = clear_text(ints_to_text(generated, self.dataloader.idx2str))
@@ -364,10 +363,10 @@ class Generator():
 
         return self.log["generations"]
 
-    def _generate(self, start, max_len: int = 100, n_verses: int = 100, temperature: int = 1.0, generation_type:str='sampling'):
+    def _generate(self, start, generation_type:str, n_verses: int = 100, temperature: int = 1.0):
 
         '''generates 'n_verses' verses, starting from input 'start', where every 
-        verse has at most 'max_len' tokens. The generation probability is 
+        verse has at most 'self.dataloader.max_len' tokens. The generation probability is 
         influenced by the temperature: the higher the temperature, the more 
         original (or crazy) is the text.'''
 
@@ -384,47 +383,39 @@ class Generator():
         input_sequence = start.copy()
         output = []
 
-        try:
+        for _ in range(n_verses+1):
 
-            for _ in range(n_verses+1):
+            # pad the input list to reach the max_len
+            input_sequence = list(
+                tf.keras.preprocessing.sequence.pad_sequences(
+                    [input_sequence],
+                    maxlen=self.dataloader.tercet_max_len,
+                    padding='pre')[0])
 
-                # pad the input list to reach the max_len
-                input_sequence = list(
-                    tf.keras.preprocessing.sequence.pad_sequences(
-                        [input_sequence],
-                        maxlen=max_len,
-                        padding='post')[0])
+            # print('\n', clear_text(ints_to_text(input_sequence, self.dataloader.idx2str)))
+            # print(np.array(input_sequence))
 
-                print('\n', clear_text(ints_to_text(input_sequence, self.dataloader.idx2str)))
-                print(np.array(input_sequence))
+            # generate one verse
+            generated, _ = self._generation_step(input_sequence,
+                                                generation_type = generation_type,
+                                                temperature = temperature)
 
-                # generate one verse
-                generated, _ = self._generation_step(input_sequence,
-                                                    max_len = max_len,
-                                                    temperature = temperature,
-                                                    generation_type = generation_type)
+            print('\n', len(generated))
+            print(generated)
+            print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
 
-                # print('\n', len(generated))
-                # print(generated)
-                # print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
+            # update the input sequence
+            input_sequence += generated
+            input_sequence = update_input_sequence(input_sequence)
 
-                # update the input sequence
-                input_sequence += generated
-                input_sequence = update_input_sequence(input_sequence)
+            if input_sequence == None: return output
 
-                if input_sequence == None:
-                    return output
-
-                # append the generated verse to the output
-                output += generated
-
-        except e:
-            print("ERROR: ", e)
-            pass
+            # append the generated verse to the output
+            output += generated
 
         return output
 
-    def _generation_step(self, input_sequence, max_len:int=100, temperature:int=1.0, generation_type:str='sampling'):
+    def _generation_step(self, input_sequence, generation_type, max_len:int=100, temperature:int=1.0):
 
         '''generate tokens, starting from 'input_sequence'.'''
 
@@ -438,7 +429,6 @@ class Generator():
             output = []
 
             # we repeat the process to get the entire verse (end-of-verse token is predicted)
-            # for i in range(int(max_len/3)):
             for i in range(max_len):
 
                 enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, decoder_input)
@@ -453,7 +443,8 @@ class Generator():
                 predicted_id = tf.cast(tf.random.categorical(tf.squeeze(predictions, 0), num_samples=1)[-1,0].numpy() , tf.int32)
             
                 # append the predicted token to the output
-                output.append(predicted_id.numpy())
+                predicted_id = predicted_id.numpy()
+                output.append(predicted_id)
             
                 # stop generation if the token coincides one of the "stop" tokens
                 if predicted_id in self.stop: break

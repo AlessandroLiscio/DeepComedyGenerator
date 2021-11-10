@@ -12,7 +12,7 @@ from src.parser import Parser
 ############################ SETUP ############################
 
 dataset = 'sov_sot' # one of the folders in "data/tokenized/"
-stop = ['</v>', '</t>'] # generation stopping characters
+stop = ['</v>'] # generation stopping characters
 
 ## LOCAL
 in_path  = f'../data/tokenized/{dataset}/'
@@ -113,8 +113,8 @@ for ckpt_production in range(parser.epochs_production, -1, -parser.checkpoint):
 
       if os.path.isdir(generator.get_model_folder(parser.out_path)):
           print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
-          generator.load(parser.out_path, verbose=False)
-          log = generator.generate_from_tercet(start, temperatures, 100, generation_type)
+          generator.load(parser.out_path, verbose=True)
+          log = generator.generate_from_tercet(start, temperatures, generation_type, 100)
           generator.save_generations(parser.out_path, generation_type, verbose=False)
           # generator.generations_table(parser.out_path, verbose=False)
 
