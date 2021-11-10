@@ -117,7 +117,7 @@ class DataLoader():
             key=len)
 
         # initialize groups
-        special_tokens = ['<v>', '</v>', '<t>', '</t>']
+        special_tokens = ['', '<v>', '</v>', '<t>', '</t>']
         punctuation = []
         start_sylls = []
         mid_sylls = []

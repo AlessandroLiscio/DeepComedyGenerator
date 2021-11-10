@@ -16,13 +16,13 @@ stop = ['</v>', '</t>'] # generation stopping characters
 # in_path  = f'data/tokenized/{dataset}/'
 # out_path  = "results/"
 
-# ## SLURM
-# in_path  = f'data/tokenized/{dataset}/'
-# out_path  = '../../../../../public/liscio.alessandro/results/'
+## SLURM
+in_path  = f'data/tokenized/{dataset}/'
+out_path  = '../../../../../public/liscio.alessandro/results/'
 
-## COLAB
-in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{dataset}/' 
-out_path = '/content/drive/MyDrive/DC-gen/results/'
+# ## COLAB
+# in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{dataset}/' 
+# out_path = '/content/drive/MyDrive/DC-gen/results/'
 
 parser = Parser(in_path=in_path,
                 out_path=out_path,
