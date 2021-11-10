@@ -12,6 +12,7 @@ class DataLoader():
                 tar_len:int,
                 repetitions_production:int = 0,
                 repetitions_comedy:int = 0,
+                padding:str = 'pre',
                 in_path:str = None,
                 from_pickle:str = None,
                 verbose:str = True):
@@ -23,14 +24,15 @@ class DataLoader():
         self.original_lengths = {'production': 0, 'comedy': 0}
         self.repetitions = {'production': repetitions_production, 'comedy': repetitions_comedy}
 
+        self.inp_len = inp_len
+        self.tar_len = tar_len
+        self.padding = padding
+
         self.vocab = []
         self.train_order = []
         self.files_dict = {}
         self.tercet_max_len = 0
         self.separator = '|'
-
-        self.inp_len = inp_len
-        self.tar_len = tar_len
 
         if from_pickle:
             self.load(from_pickle, verbose)
@@ -278,8 +280,8 @@ class DataLoader():
 
         # Create dataset from inputs and targets
         dataset = tf.data.Dataset.from_tensor_slices((
-            tf.keras.preprocessing.sequence.pad_sequences(inputs, padding='pre'), 
-            tf.keras.preprocessing.sequence.pad_sequences(targets, padding='pre')))
+            tf.keras.preprocessing.sequence.pad_sequences(inputs, padding=self.padding), 
+            tf.keras.preprocessing.sequence.pad_sequences(targets, padding=self.padding)))
 
         # cache the dataset to memory to get a speedup while reading from it.
         dataset = dataset.cache()

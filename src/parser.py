@@ -9,7 +9,7 @@ class Parser(ArgumentParser):
                 encoders, decoders, heads,
                 d_model, dff, dropout,
                 weight_eov, weight_sot,
-                epochs_production, epochs_comedy, checkpoint,
+                epochs_production, epochs_comedy, checkpoint, padding,
                 verbose):
 
 
@@ -37,6 +37,9 @@ class Parser(ArgumentParser):
         self.epochs_production = epochs_production
         self.epochs_comedy     = epochs_comedy
         self.checkpoint        = checkpoint
+        self.padding           = padding
+
+        # TOKENS LOSS WEIGHTS
         self.weight_eov        = weight_eov
         self.weight_sot        = weight_sot
 
@@ -78,6 +81,7 @@ class Parser(ArgumentParser):
         if inputs.epochs_production: self.epochs_production = inputs.epochs_production
         if inputs.epochs_comedy:     self.epochs_comedy     = inputs.epochs_comedy
         if inputs.checkpoint:        self.checkpoint        = inputs.checkpoint
+        if inputs.padding:           self.padding           = inputs.padding
         if inputs.weight_eov:        self.weight_eov      = inputs.weight_eov
         if inputs.weight_sot:        self.weight_sot      = inputs.weight_sot
 
@@ -124,6 +128,8 @@ class Parser(ArgumentParser):
                             help="number of training epochs on comedy dataset")
         self.add_argument("--checkpoint", type=int,
                             help="training checkpoint for saving model weights")
+        self.add_argument("--padding", type=str,
+                            help="padding position, choose either 'pre' or 'post'")
         self.add_argument("--weight_eov", type=float,
                             help="weight of the end-of-verse token during training loss computation")
         self.add_argument("--weight_sot", type=float,

@@ -43,6 +43,7 @@ parser = Parser(in_path=in_path,
                 epochs_production=0,
                 epochs_comedy=150,
                 checkpoint=10,
+                padding='pre',
 
                 weight_eov=1.0,
                 weight_sot=1.0,
@@ -67,6 +68,7 @@ dataloader = DataLoader(in_path=parser.in_path,
                         tar_len = parser.tar_len,
                         repetitions_production=parser.epochs_production,
                         repetitions_comedy=parser.epochs_comedy,
+                        padding=parser.padding,
                         verbose = parser.verbose)
 dataloader.save(parser.out_path)
 

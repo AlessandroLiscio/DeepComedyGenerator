@@ -149,7 +149,7 @@ class Generator():
                 if checkpoint and out_path:
                     if batch != 0 and batch % (original_length * checkpoint) == 0:
                         self.save(out_path, verbose=False)
-                        
+
                 start = time.time()
 
         # Stop timer
@@ -326,7 +326,7 @@ class Generator():
                     split_tokens(tercet, self.dataloader.separator),
                     self.dataloader.str2idx))],
             maxlen=self.dataloader.tercet_max_len,
-            padding='pre')[0])
+            padding=self.dataloader.padding)[0])
 
         # print("\nStart:\n", np.array(tercet))        
         print("\nGenerating new cantica: ")
@@ -390,7 +390,7 @@ class Generator():
                 tf.keras.preprocessing.sequence.pad_sequences(
                     [input_sequence],
                     maxlen=self.dataloader.tercet_max_len,
-                    padding='pre')[0])
+                    padding=self.dataloader.padding)[0])
 
             # print('\n', clear_text(ints_to_text(input_sequence, self.dataloader.idx2str)))
             # print(np.array(input_sequence))
