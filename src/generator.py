@@ -167,10 +167,9 @@ class Generator():
         '''single training step: given an input list of verses,
         the model tries to predict the next one. Then loss
         and accuracies are computed and gradients are applied'''
-
-        pred_size = self.dataloader.pred_size
-
+        
         # split input and target
+        pred_size = 1
         tar_inp = tar[:, :-pred_size]
         tar_real = tar[:, pred_size:]
 

@@ -93,7 +93,7 @@ generator = Generator(dataloader = dataloader,
                       verbose = parser.verbose)
 
 # Print comedy samples
-dataloader.print_comedy_samples(1, text=True, ints=True)
+dataloader.print_comedy_samples(5, text=True, ints=True)
 
 # Train model on datasets
 generator.train_model(checkpoint = parser.checkpoint,

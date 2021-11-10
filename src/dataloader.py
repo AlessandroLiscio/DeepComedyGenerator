@@ -236,13 +236,18 @@ class DataLoader():
             elif dataset_name == "comedy" and self.repetitions[dataset_name] > 0:
 
                 dataset = self.files_dict[self._get_tokenized_filename(self.comedy_name)]
-                self.pred_size = self.tar_len - self.inp_len
+
+                # Remove the first tercet, which is used for generation
+                dataset = dataset[3:]
+                
+                # User by the generator
+                pred_size = self.tar_len - self.inp_len
 
                 # Split input target for Divine Comedy dataset
                 dataset, self.original_lengths[dataset_name], self.tercet_max_len = self._split_input_target(
                     dataset_name = dataset_name,
                     dataset = dataset,
-                    inp_len = self.inp_len, tar_len = self.tar_len, skip = self.pred_size,
+                    inp_len = self.inp_len, tar_len = self.tar_len, skip = pred_size,
                     repetitions = self.repetitions[dataset_name])
 
             self.datasets[dataset_name] = dataset
