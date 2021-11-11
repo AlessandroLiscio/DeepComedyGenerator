@@ -59,5 +59,5 @@ python main.py --dataset 'sov_sot' --dropout 0.2 --train --generate
  - checkpoint=10
  - weight_eov=1.0
  - weight_sot=1.0
-#### VEROBSE
+#### VERBOSITY
  - verbose=True
