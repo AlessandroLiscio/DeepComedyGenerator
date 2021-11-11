@@ -34,30 +34,30 @@ python main.py --dataset 'sov_sot' --dropout 0.2 --train --generate
 
 ## DEFAULT SETUP
 #### RUN INFO
- - from_pretrained=False
- - train=False
- - generate=False
+ - from_pretrained   = False
+ - train             = False
+ - generate          = False
 #### DATASET INFO
- - dataset='sov_sot'
- - comedy_name='comedy_np'
- - tokenization='base'
+ - dataset           = 'sov_sot'
+ - comedy_name       = 'comedy_np'
+ - tokenization      = 'base'
 #### DATASET PROCESSING
- - stop=\['\</v>']
- - padding='pre'
- - inp_len=3
- - tar_len=4
+ - stop              = \['\</v>']
+ - padding           = 'pre'
+ - inp_len           = 3
+ - tar_len           = 4
 #### MODEL PARAMETERS
- - encoders=5
- - decoders=5
- - heads=4
- - d_model=256
- - dff=512
- - dropout=0.2
+ - encoders          = 5
+ - decoders          = 5
+ - heads             = 4
+ - d_model           = 256
+ - dff               = 512
+ - dropout           = 0.2
 #### TRAINING INFO
- - epochs_production=0
- - epochs_comedy=150
- - checkpoint=10
- - weight_eov=1.0
- - weight_sot=1.0
+ - epochs_production = 0
+ - epochs_comedy     = 150
+ - checkpoint        = 10
+ - weight_eov        = 1.0
+ - weight_sot        = 1.0
 #### VERBOSITY
- - verbose=True
+ - verbose           = True
