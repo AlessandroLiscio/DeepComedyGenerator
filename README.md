@@ -42,7 +42,7 @@ python main.py --dataset 'sov_sot' --dropout 0.2 --train --generate
  - comedy_name='comedy_np'
  - tokenization='base'
 #### DATASET PROCESSING
- - stop=\['</v>']
+ - stop=\['\</v>']
  - padding='pre'
  - inp_len=3
  - tar_len=4
