@@ -20,6 +20,7 @@ _train_step_signature = [
 class Generator():
 
     def __init__(self, dataloader,
+                from_pretrained:bool=False, generator_path:str=None,
                 encoders:int=5, decoders:int=5, heads:int=4,
                 d_model:int=256, dff:int=512, dropout:float=0.2,
                 epochs_production:int=0, epochs_comedy:int=0,
@@ -51,14 +52,19 @@ class Generator():
         self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
         self.train_loss = tf.keras.metrics.Mean(name='train_loss')
         self.train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
+
+        # training weights for special tokens
         self.weight_eov = weight_eov
         self.weight_sot = weight_sot
 
         # generation_step stop tokens
         self.stop = [self.dataloader.str2idx[stopper] for stopper in stop]
 
-        # generator info
+        # initialization
         self._init_log()
+        if from_pretrained: self._load_last_checkpoint(generator_path, verbose)
+
+        # print generator info
         if verbose: print(self)
 
     def __str__(self):
@@ -263,77 +269,16 @@ class Generator():
         
         return tf.reduce_sum(loss_) / tf.reduce_sum(mask)
 
-    ############################################################################
-    ##################            SAVE AND LOAD           ######################
-    ############################################################################   
-
-    def save(self, path: str, verbose: bool = True):
-        self.save_model_weights(path, verbose)
-        self.save_log(path, verbose)
-        self.plot_history(path, verbose)
-
-    def load(self, path: str, verbose: bool = True):
-        self.load_model_weights(path, verbose)
-        self.load_log(path, verbose)
-
-    def save_model_weights(self, path: str, verbose: bool = True):
-
-        '''saves the weights of the model to target path. The name
-        of the file is based on the instantiated model's parameters'''
-
-        # create output folders
-        create_folder(path)
-        path += self.get_dataloader_name() + "/"
-        create_folder(path)
-        path += self.get_model_name() + "/"
-        create_folder(path)
-        path += self.get_checkpoint_name() + "/"
-        create_folder(path)
-        path += "weights/"
-        create_folder(path)
-
-        # save weights
-        self.model.save_weights(path)
-        if verbose: print("\n> Saved weights to checkpoint", path.replace("weights/", ""))
-
-    def load_model_weights(self, path: str, verbose: bool = True):
-
-        '''loads the weights of the model from input path, based on the
-        instantiated model's parameters'''
-
-        path = self.get_model_folder(path) + "weights/"
-        self.model.load_weights(path)
-
-        if verbose: print("\n> Loaded weights from checkpoint", path.replace("weights/", ""))
-
-    def load_log(self, path: str, verbose: bool = True):
-
-        '''loads the generator's log from input path, based on the
-        instantiated model's parameters'''
-
-        log_path = self.get_model_folder(path) + "log.json"
-        with open(log_path, "r") as f:
-            self.log = json.load(f)
 
     ############################################################################
     ######################          GENERATION              ####################
     ############################################################################
 
-    def generate_from_tercet(self, tercet, temperatures, generation_type, n_verses: int = 100):
+    def generate(self, start, temperatures, generation_type, n_verses: int = 100):
 
         '''generates 'n_verses' for each temperature, starting from
         input tercet, where every verse has at most 'tercet_max_len' tokens'''
 
-        # prepare input tercet in order to feed it to the model
-        start = list(tf.keras.preprocessing.sequence.pad_sequences(
-            [flatten(
-                encode_tokens(
-                    split_tokens(tercet, self.dataloader.separator),
-                    self.dataloader.str2idx))],
-            maxlen=self.dataloader.tercet_max_len,
-            padding=self.dataloader.padding)[0])
-
-        # print("\nStart:\n", np.array(tercet))        
         print("\nGenerating new cantica: ")
 
         # generate a cantica for each temperature
@@ -346,11 +291,11 @@ class Generator():
             t_start = time.time()
 
             # generate cantica
-            generated = self._generate(start = start,
-                                        generation_type = generation_type,
-                                        n_verses = n_verses,
-                                        temperature = temp
-                                        )
+            generated = self._generate_cantica(start = start,
+                                                generation_type = generation_type,
+                                                n_verses = n_verses,
+                                                temperature = temp
+                                                )
 
             # decode the generated cantica and remove special tokens
             generated = clear_text(ints_to_text(generated, self.dataloader.idx2str))
@@ -368,7 +313,7 @@ class Generator():
 
         return self.log["generations"]
 
-    def _generate(self, start, generation_type:str, n_verses: int = 100, temperature: int = 1.0):
+    def _generate_cantica(self, start, generation_type:str, n_verses: int = 100, temperature: int = 1.0):
 
         '''generates 'n_verses' verses, starting from input 'start', where every 
         verse has at most 'self.dataloader.tercet_max_len' tokens. The generation probability is 
@@ -519,6 +464,85 @@ class Generator():
         tokens = np.argsort(predictions)[-beam_width:]
         probabilities = predictions[tokens]
         return tokens, probabilities, attention_weights
+
+    ############################################################################
+    ##################            SAVE AND LOAD           ######################
+    ############################################################################   
+
+    def save(self, path: str, verbose: bool = True):
+        self.save_model_weights(path, verbose)
+        self.save_log(path, verbose)
+        self.plot_history(path, verbose)
+
+    def load(self, path: str, verbose: bool = True):
+        self.load_model_weights(path, verbose)
+        self.load_log(path, verbose)
+
+    def _load_last_checkpoint(self, path: str, verbose: bool = True):
+
+
+        # find highest model checkpoint
+        w_path = path + self.get_dataloader_name() + "/"
+        w_path += self.get_model_name() + "/"
+        max_epochs = 0
+
+        for entry in os.scandir(w_path):
+            if entry.is_dir():
+                ckpt = entry.path.split("/")[-1]
+                epochs_total = 0
+                for dataset_name, epochs in zip(self.dataloader.datasets.keys(), ckpt.split("_")):
+                    epochs_total += int(epochs)
+                if epochs_total > max_epochs:
+                    max_epochs = epochs_total
+                    for dataset_name, epochs in zip(self.dataloader.datasets.keys(), ckpt.split("_")):
+                        self.epochs[dataset_name] = epochs
+
+        w_path += self.get_checkpoint_name() + "/"
+        w_path += "weights/"
+        self.model.load_weights(w_path)
+        self.load_log(path, verbose)
+
+        if verbose: print("\n> Loaded weights from checkpoint", w_path.replace("weights/", ""))
+
+    def save_model_weights(self, path: str, verbose: bool = True):
+
+        '''saves the weights of the model to target path. The name
+        of the file is based on the instantiated model's parameters'''
+
+        # create output folders
+        create_folder(path)
+        path += self.get_dataloader_name() + "/"
+        create_folder(path)
+        path += self.get_model_name() + "/"
+        create_folder(path)
+        path += self.get_checkpoint_name() + "/"
+        create_folder(path)
+        path += "weights/"
+        create_folder(path)
+
+        # save weights
+        self.model.save_weights(path)
+        if verbose: print("\n> Saved weights to checkpoint", path.replace("weights/", ""))
+
+    def load_model_weights(self, path: str, verbose: bool = True):
+
+        '''loads the weights of the model from input path, based on the
+        instantiated model's parameters'''
+
+        path = self.get_model_folder(path) + "weights/"
+        self.model.load_weights(path)
+
+        if verbose: print("\n> Loaded weights from checkpoint", path.replace("weights/", ""))
+
+    def load_log(self, path: str, verbose: bool = True):
+
+        '''loads the generator's log from input path, based on the
+        instantiated model's parameters'''
+
+        log_path = self.get_model_folder(path) + "log.json"
+        with open(log_path, "r") as f:
+            self.log = json.load(f)
+
 
     ############################################################################
     ######################          GENERATOR INFO            ##################

@@ -13,8 +13,9 @@ class DataLoader():
                 repetitions_production:int = 0,
                 repetitions_comedy:int = 0,
                 padding:str = 'pre',
-                in_path:str = None,
-                from_pickle:str = None,
+                data_path:str = None,
+                dataloader_path:str = None,
+                from_pickle:bool = False,
                 verbose:str = True):
 
         self.comedy_name = comedy_name
@@ -35,12 +36,13 @@ class DataLoader():
         self.separator = '|'
 
         if from_pickle:
-            self.load(from_pickle, verbose)
+            self.load(dataloader_path, verbose)
         else:
             self._init_train_order()
-            self._read_files(in_path)
+            self._read_files(data_path)
             self._init_vocab_and_mappings()
             self._init_datasets()
+            self.save(dataloader_path)
         if verbose: print(self)
 
     def __str__(self):
@@ -289,7 +291,7 @@ class DataLoader():
         # create batched dataset and shuffle it
         buffer_size = len(dataset)
         dataset = dataset.shuffle(buffer_size, reshuffle_each_iteration=True, seed=42
-                    ).repeat(repetitions).padded_batch(batch_size, drop_remainder=True)
+                    ).repeat(repetitions).padded_batch(batch_size, drop_remainder=False)
                     
         # This allows later elements to be prepared while the current is being processed.
         dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
