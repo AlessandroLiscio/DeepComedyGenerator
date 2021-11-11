@@ -227,8 +227,8 @@ class DataLoader():
 
                 dataset = self.files_dict[self._get_tokenized_filename(self.comedy_name)]
 
-                # Remove the first tercet, which is used for generation
-                dataset = dataset[3:]
+                # Remove the first verses, which are used for generation
+                dataset = dataset[self.inp_len:]
 
                 # Split input target for Divine Comedy dataset
                 dataset, self.original_lengths[dataset_name], self.tercet_max_len = self._split_input_target(
@@ -375,9 +375,18 @@ class DataLoader():
 
     def get_comedy_start(self):
 
-        '''returns the list of the first three verses of the divine comedy'''
-        
-        return self.files_dict[self._get_tokenized_filename(self.comedy_name)][:self.inp_len]
+        '''returns the first verses of the divine comedy'''
+
+        start = self.files_dict[self._get_tokenized_filename(self.comedy_name)][:self.inp_len]
+        tokenized_start = list(tf.keras.preprocessing.sequence.pad_sequences(
+                        [flatten(
+                            encode_tokens(
+                                split_tokens(start, self.separator),
+                                self.str2idx))],
+                        maxlen=self.tercet_max_len,
+                        padding=self.padding)[0])
+
+        return start, tokenized_start
 
     ############################################################################
     #######################     FILES MANAGEMENT      ##########################

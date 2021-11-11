@@ -4,10 +4,8 @@ from src.parser import Parser
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import numpy as np
-import tensorflow as tf
 from src.generator import Generator
 from src.dataloader import DataLoader
-from src.tokensprocessing import *
 
 ############################ SETUP ############################
 
@@ -99,17 +97,8 @@ if parser.train:
 
 if parser.generate:
   
-  # TOKENIZE STARTING INPUT FOR THE MODEL
-  start = dataloader.get_comedy_start()
-  tokenized_start = list(tf.keras.preprocessing.sequence.pad_sequences(
-                          [flatten(
-                              encode_tokens(
-                                  split_tokens(start, generator.dataloader.separator),
-                                  generator.dataloader.str2idx))],
-                          maxlen=generator.dataloader.tercet_max_len,
-                          padding=generator.dataloader.padding)[0])
-
-  # SHOW GENERATION STARTING INPUT
+  # GET GENERATION STARTING INPUT
+  start, tokenized_start = dataloader.get_comedy_start()
   print("\nstart:\n", np.array(start))
   print("\ntokenized_start:\n", np.array(tokenized_start))
 
@@ -117,6 +106,7 @@ if parser.generate:
   for ckpt_production in range(parser.epochs_production, -1, -parser.checkpoint):
     for ckpt_comedy in range(parser.epochs_comedy, -1, -parser.checkpoint):
       
+      # Update generator epochs to retrieve the right checkpoint folder
       generator.epochs['production'] = ckpt_production
       generator.epochs['comedy'] = ckpt_comedy
 
