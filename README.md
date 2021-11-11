@@ -1,7 +1,7 @@
 # DeepComedyGenerator
 ## USAGE
 
-It is possible to run this repository from three different 'runtime' options:
+It is possible to run this repository in three different ways:
  - colab
  - local
  - slurm
@@ -13,11 +13,11 @@ based on the value of the 'runtime' variable.
 
 In order to run the code from a Colab session, follow these steps:
 
-1- Open this notebook: https://colab.research.google.com/drive/1l_PAqCU6UaZsx4Z8SK9FNMswP5yv7K1O#scrollTo=YLZyIDgbgZHe
-2- In the colab session, create a directory named "src" and upload the script in the repository "src" directory in it
-3- In your GDrive account, create a directory named "DC-gen" upload the repository "data" director in it
-4- (Optional) Check the "runtime" variable is set to 'colab'
-5- (Optional) Change the values in the "Parser" call
+ 1- Open this notebook: https://colab.research.google.com/drive/1l_PAqCU6UaZsx4Z8SK9FNMswP5yv7K1O#scrollTo=YLZyIDgbgZHe
+ 2- In the colab session, create a directory named "src" and upload the script in the repository "src" directory in it
+ 3- In your GDrive account, create a directory named "DC-gen" upload the repository "data" director in it
+ 4- (Optional) Check the "runtime" variable is set to 'colab'
+ 5- (Optional) Change the values in the "Parser" call
 
 ### FROM TERMINAL
 
