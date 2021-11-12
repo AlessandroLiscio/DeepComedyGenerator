@@ -20,7 +20,7 @@ class Parser(ArgumentParser):
         self.generate = generate
 
         ## DATASET INFO
-        self.dataset =  dataset
+        self.dataset = dataset
         self.comedy_name  = comedy_name
         self.tokenization = tokenization
 
@@ -48,6 +48,10 @@ class Parser(ArgumentParser):
         ## VERBOSE
         self.verbose = verbose
 
+        if not runtime == 'colab':
+            super().__init__()
+            self.__init_args__()
+
         ## PATHS
         if self.runtime == 'local':
             self.in_path  = f'data/tokenized/{self.dataset}/'
@@ -58,10 +62,6 @@ class Parser(ArgumentParser):
         elif self.runtime == 'colab':
             self.in_path = f'/content/drive/MyDrive/DC-gen/data/tokenized/{self.dataset}/' 
             self.out_path = '/content/drive/MyDrive/DC-gen/results/'
-
-        if not runtime == 'colab':
-            super().__init__()
-            self.__init_args__()
 
 
     def __init_args__(self):
