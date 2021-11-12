@@ -38,9 +38,9 @@ python main.py --dataset 'sov_sot' --dropout 0.2 --train --generate
  - train             = False
  - generate          = False
 #### DATASET INFO
- - dataset           = 'sov_sot'
+ - dataset           = 'sov'
  - comedy_name       = 'comedy_np'
- - tokenization      = 'base'
+ - tokenization      = 'es'
 #### DATASET PROCESSING
  - stop              = \['\</v>']
  - padding           = 'pre'
@@ -55,7 +55,7 @@ python main.py --dataset 'sov_sot' --dropout 0.2 --train --generate
  - dropout           = 0.2
 #### TRAINING INFO
  - epochs_production = 0
- - epochs_comedy     = 150
+ - epochs_comedy     = 70
  - checkpoint        = 10
  - weight_eov        = 1.0
  - weight_sot        = 1.0
