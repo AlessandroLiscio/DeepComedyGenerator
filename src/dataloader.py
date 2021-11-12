@@ -6,6 +6,7 @@ from src.tokensprocessing import *
 class DataLoader():
 
     def __init__(self,
+                dataset:str,
                 comedy_name:str,
                 tokenization:str,
                 inp_len:int,
@@ -18,6 +19,7 @@ class DataLoader():
                 from_pickle:bool = False,
                 verbose:str = True):
 
+        self.dataset = dataset
         self.comedy_name = comedy_name
         self.tokenization = tokenization
 
@@ -50,6 +52,7 @@ class DataLoader():
             "",
             ">> DATALOADER:",
             f"> PARAMETERS",
+            f" - dataset: {self.dataset}",
             f" - comedy_name: {self.comedy_name}",
             f" - tokenization: {self.tokenization}",
             f" - inp_len: {self.inp_len}",
@@ -113,7 +116,10 @@ class DataLoader():
             key=len)
 
         # initialize groups
-        special_tokens = ['', '<v>', '</v>', '<t>', '</t>']
+        if self.dataset == 'sov-sot-toghether':
+            special_tokens = ['', '<v>', '</v>', '<t><v>', '</t>']
+        else:
+            special_tokens = ['', '<v>', '</v>', '<t>', '</t>']
         punctuation = []
         start_sylls = []
         mid_sylls = []
@@ -171,7 +177,8 @@ class DataLoader():
         self.pad =  self.str2idx['']
         self.sov = self.str2idx['<v>']
         self.eov = self.str2idx['</v>']
-        self.sot = self.str2idx['<t>']
+        if self.dataset == 'sov-sot-toghether': self.sot = self.str2idx['<t><v>']
+        else:                                   self.sot = self.str2idx['<t>']
         self.eot = self.str2idx['</t>']
         self.alphas_start = len(special_tokens)+len(punctuation)
 
@@ -303,7 +310,7 @@ class DataLoader():
     ############################################################################
 
     def get_name(self):
-        return f"{self.comedy_name}_{self.tokenization}_{self.inp_len}_{self.tar_len}"
+        return f"{self.dataset}_{self.comedy_name}_{self.tokenization}_{self.inp_len}_{self.tar_len}"
 
     def save(self, path:str, verbose:bool=False):
 

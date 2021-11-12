@@ -18,7 +18,7 @@ parser = Parser(
   generate=False,
 
   ## DATASET INFO
-  dataset='sov_sot',        # one of the folders in "data/tokenized/"
+  dataset='sov-sot',        # one of the folders in "data/tokenized/"
   comedy_name='comedy_np',  # ['comedy_np', 'comedy_11_np']
   tokenization='base',      # ['base', 'es', 'is-es']
 
@@ -51,9 +51,10 @@ assert parser.d_model % parser.heads == 0
 ########################### DATALOADER ###########################
 
 dataloader = DataLoader(
-  from_pickle = parser.from_pretrained,
+  from_pickle = False,
   dataloader_path = parser.out_path,
   data_path = parser.in_path,
+  dataset = parser.dataset,
   comedy_name = parser.comedy_name,
   tokenization = parser.tokenization,
   inp_len = parser.inp_len,

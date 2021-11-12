@@ -62,7 +62,8 @@ class Generator():
 
         # initialization
         self._init_log()
-        if from_pretrained: self._load_last_checkpoint(generator_path, verbose)
+        if from_pretrained: 
+            self._load_last_checkpoint(generator_path, verbose)
 
         # print generator info
         if verbose: print(self)
@@ -117,7 +118,10 @@ class Generator():
         assert (dataset_name == "comedy" or dataset_name == "production")
 
         # initialize training variables
-        start = time.time()
+        if self.log['trainings'][dataset_name]['time'] == 0:
+            start = time.time()
+        else:
+            start = self.log['trainings'][dataset_name]['time']
         epoch = 1
         loss_history = []
         accuracy_history = []
@@ -247,26 +251,7 @@ class Generator():
         # apply mask to loss tensor
         loss_ *= sot_mask
 
-        ########## SYLLS SCORE ##########
-
-        # # real target syllables
-        # real_sylls = tf.math.greater_equal(real, self.alphas_start)
-        # real_sylls = tf.cast(real_sylls, dtype=loss_.dtype)
-        # real_sylls = tf.reduce_sum(real_sylls)
-
-        # # predicted target syllables
-        # pred_sylls = tf.math.greater_equal(pred, self.alphas_start)
-        # pred_sylls = tf.cast(pred_sylls, dtype=loss_.dtype)
-        # pred_sylls = tf.reduce_sum(pred_sylls)
-
-        # # compute syllables score
-        # sylls_score = abs(real_sylls - pred_sylls) / real_sylls
-
-        # sylls_score = real_sylls / (real_sylls - abs(real_sylls - pred_sylls) )
-        # return tf.reduce_sum(loss_) / tf.reduce_sum(mask) * sylls_score
-
         # returns a single float value representing the loss value
-        
         return tf.reduce_sum(loss_) / tf.reduce_sum(mask)
 
 
@@ -495,7 +480,7 @@ class Generator():
                 if epochs_total > max_epochs:
                     max_epochs = epochs_total
                     for dataset_name, epochs in zip(self.dataloader.datasets.keys(), ckpt.split("_")):
-                        self.epochs[dataset_name] = epochs
+                        self.epochs[dataset_name] = int(epochs)
 
         w_path += self.get_checkpoint_name() + "/"
         w_path += "weights/"
@@ -562,6 +547,7 @@ class Generator():
                 "droupout": self.model.dropout
             },
             "dataloader": {
+                "dataset": self.dataloader.dataset,
                 "comedy_name": self.dataloader.comedy_name,
                 "tokenization": self.dataloader.tokenization,
                 "separator": self.dataloader.separator,
@@ -575,7 +561,9 @@ class Generator():
                 "info": {
                     "optimizer": str(type(self.optimizer))[:-2].split('.')[-1],
                     "loss": str(type(self.loss_object))[:-2].split('.')[-1],
-                    "metric": str(type(self.train_accuracy))[:-2].split('.')[-1]
+                    "metric": str(type(self.train_accuracy))[:-2].split('.')[-1],
+                    "weight_eov": self.weight_eov,
+                    "weight_sot": self.weight_sot
                 },
                 "production": {
                     "epochs": self.epochs['production'],

@@ -12,7 +12,7 @@ data_path = "../data/tokenized/"
 create_folder(data_path)
 
 # for dataset in ['tercets', 'tercets_sov', 'tercets_sot', 'tercets_sov_sot', 'verses', 'verses_sov']:
-for dataset in ['sov', 'sot', 'sov_sot']:
+for dataset in ['sov', 'sot', 'sov-sot', "sov-sot-toghether"]:
 
     out_path = data_path+f"{dataset}/"
     create_folder(out_path, verbose=True)
@@ -36,7 +36,10 @@ for dataset in ['sov', 'sot', 'sov_sot']:
                 if count == 3:
                     count = 0
                 elif count == 1:
-                    verse = '<t>|'+verse
+                    if dataset == 'sov-sot-toghether':
+                        verse = '<t>'+verse
+                    else:
+                        verse = '<t>|'+verse
                 count += 1
 
             new_text.append(verse)
