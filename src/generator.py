@@ -318,7 +318,7 @@ class Generator():
         input_sequence = start.copy()
         output = []
 
-        for _ in range(n_verses):
+        for _ in range(n_verses+1):
 
             # pad the input list to reach the maximum length
             input_sequence = list(

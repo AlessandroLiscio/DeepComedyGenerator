@@ -51,7 +51,7 @@ assert parser.d_model % parser.heads == 0
 ########################### DATALOADER ###########################
 
 dataloader = DataLoader(
-  from_pickle = False,
+  from_pickle = parser.out_path,
   dataloader_path = parser.out_path,
   data_path = parser.in_path,
   dataset = parser.dataset,
@@ -128,5 +128,7 @@ if parser.generate:
           log = generator.generate(tokenized_start, temperatures, generation_type, 100)
           generator.save_generations(parser.out_path, generation_type, verbose=False)
           # generator.generations_table(parser.out_path, verbose=False)
+    #   break
+    # break
 
 ########################### END ###########################
