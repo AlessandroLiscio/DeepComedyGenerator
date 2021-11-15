@@ -128,7 +128,8 @@ if parser.generate:
           log = generator.generate(tokenized_start, temperatures, generation_type, 100)
           generator.save_generations(parser.out_path, generation_type, verbose=False)
           # generator.generations_table(parser.out_path, verbose=False)
-      break
-    break
+          
+    #   break
+    # break
 
 ########################### END ###########################
