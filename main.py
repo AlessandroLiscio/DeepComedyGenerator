@@ -18,12 +18,12 @@ parser = Parser(
   generate=False,
 
   ## DATASET INFO
-  dataset='sov-sot',        # one of the folders in "data/tokenized/"
+  dataset='sov-count',        # one of the folders in "data/tokenized/"
   comedy_name='comedy_np',  # ['comedy_np', 'comedy_11_np']
   tokenization='base',      # ['base', 'es', 'is-es']
 
   ## DATASET PROCESSING
-  stop=['</v1>', '</v2>', '</v3>'],            # [['</v>'], ['</t>'], ['</v>', '</t>']]
+  stop=['</v>'],            # [['</v>'], ['</t>'], ['</v>', '</t>']]
   padding='pre',            # ['pre', 'post']
   inp_len=3,
   tar_len=4,

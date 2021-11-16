@@ -117,7 +117,7 @@ class DataLoader():
             key=len)
 
         # initialize groups
-        if self.dataset == 'sov-sot-toghether':
+        if self.dataset == 'sov+sot':
             special_tokens = ['', '<v>', '</v>', '<t><v>', '</t>']
         elif self.dataset == 'sov-count':
             special_tokens = ['', '<v>', '</v>', '<t>', '</t>', '<v1>', '<v2>', '<v3>', '</v1>', '</v2>', '</v3>']
@@ -180,7 +180,7 @@ class DataLoader():
         self.pad =  self.str2idx['']
         self.sov = self.str2idx['<v>']
         self.eov = self.str2idx['</v>']
-        if self.dataset == 'sov-sot-toghether': self.sot = self.str2idx['<t><v>']
+        if self.dataset == 'sov+sot': self.sot = self.str2idx['<t><v>']
         else:                                   self.sot = self.str2idx['<t>']
         self.eot = self.str2idx['</t>']
         self.alphas_start = len(special_tokens)+len(punctuation)
