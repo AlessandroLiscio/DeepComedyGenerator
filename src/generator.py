@@ -337,7 +337,7 @@ class Generator():
 
             # print('\n', len(generated))
             # print(generated)
-            # print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
+            print(clear_text(ints_to_text(generated, self.dataloader.idx2str)))
 
             # update the input sequence
             input_sequence += generated

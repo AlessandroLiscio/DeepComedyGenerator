@@ -44,7 +44,8 @@ class DataLoader():
             self._read_files(data_path)
             self._init_vocab_and_mappings()
             self._init_datasets()
-            self.save(dataloader_path)
+            if dataloader_path:
+                self.save(dataloader_path)
         if verbose: print(self)
 
     def __str__(self):
@@ -118,6 +119,8 @@ class DataLoader():
         # initialize groups
         if self.dataset == 'sov-sot-toghether':
             special_tokens = ['', '<v>', '</v>', '<t><v>', '</t>']
+        elif self.dataset == 'sov-count':
+            special_tokens = ['', '<v>', '</v>', '<t>', '</t>', '<v1>', '<v2>', '<v3>', '</v1>', '</v2>', '</v3>']
         else:
             special_tokens = ['', '<v>', '</v>', '<t>', '</t>']
         punctuation = []

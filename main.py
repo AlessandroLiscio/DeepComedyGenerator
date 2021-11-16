@@ -23,7 +23,7 @@ parser = Parser(
   tokenization='base',      # ['base', 'es', 'is-es']
 
   ## DATASET PROCESSING
-  stop=['</v>'],            # [['</v>'], ['</t>'], ['</v>', '</t>']]
+  stop=['</v1>', '</v2>', '</v3>'],            # [['</v>'], ['</t>'], ['</v>', '</t>']]
   padding='pre',            # ['pre', 'post']
   inp_len=3,
   tar_len=4,
@@ -32,8 +32,8 @@ parser = Parser(
   encoders=5,
   decoders=5,
   heads=4,
-  d_model=256,
-  dff=512,
+  d_model=512,
+  dff=256,
   dropout=0.2,
 
   ## TRAINING INFO
@@ -128,8 +128,8 @@ if parser.generate:
           log = generator.generate(tokenized_start, temperatures, generation_type, 100)
           generator.save_generations(parser.out_path, generation_type, verbose=False)
           # generator.generations_table(parser.out_path, verbose=False)
-          
-    #   break
-    # break
+
+      break
+    break
 
 ########################### END ###########################
