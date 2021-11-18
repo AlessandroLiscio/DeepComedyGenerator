@@ -12,7 +12,7 @@ from src.dataloader import DataLoader
 parser = Parser(
   
   ## RUN INFO
-  runtime = 'local',         # ['local', 'colab', 'slurm']
+  runtime = 'slurm',         # ['local', 'colab', 'slurm']
   from_pretrained=False,
   train=False,
   generate=False,
@@ -129,7 +129,7 @@ if parser.generate:
           generator.save_generations(parser.out_path, generation_type, verbose=False)
           # generator.generations_table(parser.out_path, verbose=False)
 
-      break
-    break
+    #   break
+    # break
 
 ########################### END ###########################
