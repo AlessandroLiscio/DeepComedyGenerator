@@ -23,7 +23,7 @@ parser = Parser(
   tokenization='base',      # ['base', 'es', 'is-es']
 
   ## DATASET PROCESSING
-  stop=['</v>'],            # [['</v>'], ['</t>'], ['</v>', '</t>']]
+  stop=['</v>', '</v1>', '</v2>', '</v3>'],            # [['</v>'], ['</t>'], ['</v>', '</t>']]
   padding='pre',            # ['pre', 'post']
   inp_len=3,
   tar_len=4,
@@ -116,7 +116,8 @@ if parser.generate:
         print(f"\n>> RESULTS FOR CHECKPOINT: {generator.epochs['production']}_{generator.epochs['comedy']}")
         generator.load(parser.out_path, verbose=False)
 
-        for generation_type in ['sampling', 'beam_search']:
+        # for generation_type in ['sampling', 'beam_search']:
+        for generation_type in ['sampling']:
           
           # CHOOSE LIST OF TEMPERATURES (ONE GENERATION FOR EACH TEMPERATURE)
           if generation_type == 'sampling':

@@ -13,6 +13,13 @@ def clear_text(text):
   text = text.replace('<v>', '')
   text = text.replace('</v>', '\n')
 
+  text = text.replace('<v1>', '')
+  text = text.replace('</v1>', '\n')
+  text = text.replace('<v2>', '')
+  text = text.replace('</v2>', '\n')
+  text = text.replace('<v3>', '')
+  text = text.replace('</v3>', '\n')
+
   text = text.replace('<t>', '\n')
   text = text.replace('</t>', '\n\n')
   
