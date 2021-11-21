@@ -233,23 +233,23 @@ class Generator():
 
         ######### EOV MASK #########
 
-        # eov mask
-        eov_mask = tf.math.equal(real, self.dataloader.eov)
-        eov_mask = tf.where(eov_mask, self.weight_eov, 1.0)
-        eov_mask = tf.cast(eov_mask, dtype=loss_.dtype)
+        # # eov mask
+        # eov_mask = tf.math.equal(real, self.dataloader.eov)
+        # eov_mask = tf.where(eov_mask, self.weight_eov, 1.0)
+        # eov_mask = tf.cast(eov_mask, dtype=loss_.dtype)
 
-        # apply mask to loss tensor
-        loss_ *= eov_mask
+        # # apply mask to loss tensor
+        # loss_ *= eov_mask
 
         ######### SOT MASK #########
 
-        # eov mask
-        sot_mask = tf.math.equal(real, self.dataloader.sot)
-        sot_mask = tf.where(sot_mask, self.weight_sot, 1.0)
-        sot_mask = tf.cast(sot_mask, dtype=loss_.dtype)
+        # # eov mask
+        # sot_mask = tf.math.equal(real, self.dataloader.sot)
+        # sot_mask = tf.where(sot_mask, self.weight_sot, 1.0)
+        # sot_mask = tf.cast(sot_mask, dtype=loss_.dtype)
 
-        # apply mask to loss tensor
-        loss_ *= sot_mask
+        # # apply mask to loss tensor
+        # loss_ *= sot_mask
 
         # returns a single float value representing the loss value
         return tf.reduce_sum(loss_) / tf.reduce_sum(mask)
