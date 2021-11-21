@@ -1,0 +1,93 @@
+{
+    "model": {
+        "encoders": 3,
+        "decoders": 3,
+        "heads": 4,
+        "d_model": 512,
+        "dff": 256,
+        "droupout": 0.2
+    },
+    "dataloader": {
+        "dataset": "sov",
+        "comedy_name": "comedy_np",
+        "tokenization": "es",
+        "separator": "|",
+        "original_length_production": 0,
+        "original_length_comedy": 222,
+        "tercet_max_len": 14,
+        "train_order": [
+            "tokenized_comedy_np_es.txt"
+        ],
+        "vocab_info": {
+            "size": 5178,
+            "special tokens": 5,
+            "punctuation": 0,
+            "starting syllables": 0,
+            "middle syllables": 2877,
+            "ending syllables": 2296
+        }
+    },
+    "trainings": {
+        "info": {
+            "optimizer": "Adam",
+            "loss": "SparseCategoricalCrossentropy",
+            "metric": "SparseCategoricalAccuracy",
+            "weight_eov": 10.0,
+            "weight_sot": 1.0
+        },
+        "production": {
+            "epochs": 0,
+            "time": 0,
+            "loss_history": [],
+            "acc_history": []
+        },
+        "comedy": {
+            "epochs": 20,
+            "time": 189,
+            "loss_history": [
+                "9.4368",
+                "5.8112",
+                "5.3537",
+                "4.9112",
+                "4.1061",
+                "3.2822",
+                "2.7848",
+                "2.4852",
+                "2.2924",
+                "2.1465",
+                "2.0345",
+                "1.9439",
+                "1.8572",
+                "1.7801",
+                "1.7101",
+                "1.6403",
+                "1.5720",
+                "1.5090",
+                "1.4412",
+                "1.3590"
+            ],
+            "acc_history": [
+                "0.0693",
+                "0.1596",
+                "0.1993",
+                "0.2393",
+                "0.3573",
+                "0.4837",
+                "0.5503",
+                "0.5846",
+                "0.6040",
+                "0.6181",
+                "0.6287",
+                "0.6388",
+                "0.6477",
+                "0.6568",
+                "0.6645",
+                "0.6715",
+                "0.6800",
+                "0.6881",
+                "0.6964",
+                "0.7089"
+            ]
+        }
+    }
+}

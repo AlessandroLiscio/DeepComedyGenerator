@@ -1,0 +1,73 @@
+{
+    "model": {
+        "encoders": 3,
+        "decoders": 3,
+        "heads": 4,
+        "d_model": 256,
+        "dff": 512,
+        "droupout": 0.2
+    },
+    "dataloader": {
+        "dataset": "sov",
+        "comedy_name": "comedy_np",
+        "tokenization": "is-es",
+        "separator": "|",
+        "original_length_production": 0,
+        "original_length_comedy": 222,
+        "tercet_max_len": 14,
+        "train_order": [
+            "tokenized_comedy_np_is-es.txt"
+        ],
+        "vocab_info": {
+            "size": 6097,
+            "special tokens": 5,
+            "punctuation": 0,
+            "starting syllables": 1870,
+            "middle syllables": 2226,
+            "ending syllables": 1996
+        }
+    },
+    "trainings": {
+        "info": {
+            "optimizer": "Adam",
+            "loss": "SparseCategoricalCrossentropy",
+            "metric": "SparseCategoricalAccuracy",
+            "weight_eov": 10.0,
+            "weight_sot": 1.0
+        },
+        "production": {
+            "epochs": 0,
+            "time": 0,
+            "loss_history": [],
+            "acc_history": []
+        },
+        "comedy": {
+            "epochs": 10,
+            "time": 236,
+            "loss_history": [
+                "11.4524",
+                "7.1252",
+                "5.7842",
+                "5.2761",
+                "4.8177",
+                "4.3012",
+                "3.4564",
+                "2.7739",
+                "2.4144",
+                "2.1967"
+            ],
+            "acc_history": [
+                "0.0665",
+                "0.1050",
+                "0.1717",
+                "0.2030",
+                "0.2388",
+                "0.3018",
+                "0.4310",
+                "0.5334",
+                "0.5810",
+                "0.6073"
+            ]
+        }
+    }
+}
